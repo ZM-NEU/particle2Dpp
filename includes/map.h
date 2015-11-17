@@ -6,45 +6,45 @@
 using namespace std;
 
 typedef struct particle {
-  pose2D pose;
-  float weight;
+    pose2D pose;
+    float weight;
 } particle;
 
 typedef struct step {
-  pose2D current;
-  pose2D previous;
+    pose2D current;
+    pose2D previous;
 } step;
 
 typedef struct lidarData {
-  float ranges[NUM_RANGES];
+    float ranges[NUM_RANGES];
 } lidarData;
 
 class Map {
 public:
-  Map();
-  ~Map();
-  
-  // Load map_type
-  void init_map(map_type map);
-  void init_particles(int numParticles);
-  
-  // Prediction Phase
-  void update_location(step motion);
-  
-  // Update Phase 
-  void update_prediction(lidarData data);
+    Map();
+    ~Map();
+    
+    // Load map_type
+    void init_map(map_type map);
+    void init_particles(int numParticles);
+    
+    // Prediction Phase
+    void update_location(step motion);
+    
+    // Update Phase 
+    void update_prediction(lidarData data);
 
 private:
-  map_type _map;
-  int _numParticles;
-  particle* _particles;
-  
-  // Update the particle's weight
-  float _get_particle_weight(lidarData data, particle p);
-  
-  // Get total probability of the map
-  float total_probability();
-  
-  // Return the state with the highest probability
-  pose2D _get_estimated_state(); 
+    map_type _map;
+    int _numParticles;
+    particle* _particles;
+    
+    // Update the particle's weight
+    float _get_particle_weight(lidarData data, particle p);
+    
+    // Get total probability of the map
+    float total_probability();
+    
+    // Return the state with the highest probability
+    pose2D _get_estimated_state(); 
 };
