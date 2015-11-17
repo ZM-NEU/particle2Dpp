@@ -37,7 +37,7 @@ public:
 private:
   map_type _map;
   int _numParticles;
-  vector<particle> _particles;
+  particle* _particles;
   
   // Update the particle's weight
   float _get_particle_weight(lidarData data, particle p);
@@ -45,4 +45,6 @@ private:
   // Get total probability of the map
   float total_probability();
   
+  // Return the state with the highest probability
+  pose2D _get_estimated_state(); 
 };
