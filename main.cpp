@@ -23,6 +23,10 @@ int main(int argc, char **argv) {
     printf("Number of entries in Log2: %lu\n",logBook2.size());
     
     read_beesoft_map(map_name.c_str(), &map);
+    Map map1 = Map();
+    Map map2 = Map();
+    map1.init_map(map);
+    map2.init_map(map);
     
     printf("Resolution: %i\n",map.resolution);
     printf("SizeX: %i\n",map.size_x);
