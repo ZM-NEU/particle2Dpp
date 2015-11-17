@@ -7,10 +7,13 @@ public:
   Map();
   ~Map();
   
-  // Initalize
+  // Load map_type
   void init_map(map_type map);
 
 private:
   map_type _map;
+  
+  // Get total probability of the map
+  float total_probability();
   
 };
