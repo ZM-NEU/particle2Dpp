@@ -6,7 +6,8 @@
 #include <sstream>
 #include <stdlib.h>
 
-#define NUM_RANGES 180
+#define LIDAR_START 7
+#define LIDAR_END 187
 
 using namespace std;
 
@@ -28,62 +29,23 @@ int import_logs(const char *logName, vector<logEntry> & logBook) {
 	while(stringin >> buf) {
 	    tokens.push_back(buf);
 	}
-	
-	for(int i = 0; i < tokens.size(); i++)
+	logData.logType = (tokens.front()[0] == 'O') ? ODOM : LIDAR;
+	logData.robotPose.x = strtof(tokens.at(1).c_str(), NULL);
+	logData.robotPose.y = strtof(tokens.at(2).c_str(), NULL);
+	logData.robotPose.theta = strtof(tokens.at(3).c_str(), NULL);
+	logData.ts = strtof(tokens.back().c_str(), NULL);
+	if(logData.logType == LIDAR)
 	{
-	    if(i == 0)
+	    logData.lidarPose.x = strtof(tokens.at(4).c_str(), NULL);
+	    logData.lidarPose.y = strtof(tokens.at(5).c_str(), NULL);
+	    logData.lidarPose.theta = strtof(tokens.at(6).c_str(), NULL);
+	    for(int i = LIDAR_START; i < LIDAR_END; i++)
 	    {
-		char type = tokens.at(0)[0];
-		if(type == 'O')
-		    fprintf(stderr, "ODOM\t");
-	    }
-	    if(i == 1)
-	    {
-		float x_test = strtof(tokens.at(i).c_str(), NULL);
-		fprintf(stderr, "x is %f\t", x_test);
+		logData.ranges[i-LIDAR_START] = strtof(tokens.at(i).c_str(), NULL);
 	    }
 	}
-	float ts = strtof(tokens.back().c_str(), NULL);
-	fprintf(stderr, "ts is %f\n", ts);
-	
-	
-	
-// 	if(logLine[0] == 'O') {
-// 	    logData.logType = ODOM;
-// 	    stringin >> debugType;
-// 	    stringin >> logData.robotPose.x;
-// 	    stringin >> logData.robotPose.y;
-// 	    stringin >> logData.robotPose.theta;
-// 	    stringin >> logData.ts;
-// 	}
-// 	else if(logLine[0] == 'L') {
-// 	    logData.logType = LIDAR;
-// 	    stringin >> debugType;
-// 	    stringin >> logData.robotPose.x;
-// 	    stringin >> logData.robotPose.y;
-// 	    stringin >> logData.robotPose.theta;
-// 	    stringin >> logData.lidarPose.x;
-// 	    stringin >> logData.lidarPose.y;
-// 	    stringin >> logData.lidarPose.theta;
-// 	    fprintf(stderr, "ERROR 3 %f\n",logData.lidarPose.theta);
-// 	    for(unsigned int i = 0; i < NUM_RANGES; i++) {
-// 		fprintf(stderr, "ERROR range number %i\n",i);
-// 		stringin >> logData.ranges[i];
-// 		fprintf(stderr, "ERROR range value %f\n",logData.ranges[i]);
-// 	    }
-// 	    stringin >> logData.ts;
-// 	    fprintf(stderr, "ERROR 3 TS_END\n");
-// 	}
-// 	else {
-// 	    fprintf(stderr, "BAD LOG FILE: %s Line: %lu\n", logName, logBook.size());
-// 	    return -1;
-// 	}
-// 	fprintf(stderr, "ERROR 4\n");
-// 	logBook.push_back(logData);
-// 	fprintf(stderr, "ERROR 5\n");
-// 	cout << logBook.back().logType << " " << logBook.back().robotPose.x << " ";
-// 	cout << logBook.back().robotPose.y << " " << logBook.back().ts << endl;
-// 	fprintf(stderr, "ERROR 6\n");
+	logBook.push_back(logData);
+	fprintf(stderr, "%c %f %f %f\n", logBook.back().logType, logBook.back().robotPose.x, logBook.back().robotPose.y, logBook.back().ts);
     }
     log.close();
     return 1;

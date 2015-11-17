@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 
+#define NUM_RANGES 180
+
 using namespace std;
 
 enum log_type
@@ -18,7 +20,7 @@ typedef struct {
     pose2D robotPose;
     pose2D lidarPose;
     double ts;
-    float* ranges;
+    float ranges[NUM_RANGES];
 } logEntry;
 
 int import_logs(const char *logName, vector<logEntry> & logBook);

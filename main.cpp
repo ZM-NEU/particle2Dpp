@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     import_logs(log1_name.c_str(), logBook1);
 //     import_logs(log2_name.c_str(), logBook2);
     
-    printf("Number of entries in Log1: %i\n",logBook1.size());
+    printf("Number of entries in Log1: %lu\n",logBook1.size());
 //     printf("Number of entries in Log2: %i\n",logBook2.size());
     
     // CLASS LOG READER
