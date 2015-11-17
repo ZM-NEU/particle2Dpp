@@ -3,6 +3,7 @@ project(particle2d++)
 set( NAME_SRC 
     bee-map.cpp
     logBook.cpp
+    map.cpp
     main.cpp    
 )
 

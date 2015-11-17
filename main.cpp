@@ -3,30 +3,31 @@
 #include <string>
 #include "includes/bee-map.h"
 #include "includes/logBook.h"
+#include "includes/map.h"
 
 using namespace std;
 
 int main(int argc, char **argv) {    
     map_type map;
     string map_name = "../data/map/wean.dat";
+    string log1_name = "../data/log/robotdata1.log";
+    string log2_name = "../data/log/ascii-robotdata5.log";
+    
+    vector<logEntry> logBook1;
+    vector<logEntry> logBook2;
+    
+    import_logs(log1_name.c_str(), logBook1);
+    import_logs(log2_name.c_str(), logBook2);
+    
+    printf("Number of entries in Log1: %lu\n",logBook1.size());
+    printf("Number of entries in Log2: %lu\n",logBook2.size());
     
     read_beesoft_map(map_name.c_str(), &map);
     
     printf("Resolution: %i\n",map.resolution);
     printf("SizeX: %i\n",map.size_x);
     printf("SizeY: %i\n",map.size_y);
-    
-    string log1_name = "../data/log/robotdata1.log";
-//     string log2_name = "../data/log/ascii-robotdata5.log";
-    
-    vector<logEntry> logBook1;
-//     vector<log_entry> logBook2;
-//     
-    import_logs(log1_name.c_str(), logBook1);
-//     import_logs(log2_name.c_str(), logBook2);
-    
-    printf("Number of entries in Log1: %lu\n",logBook1.size());
-//     printf("Number of entries in Log2: %i\n",logBook2.size());
+  
     
     // CLASS LOG READER
     return 0;
