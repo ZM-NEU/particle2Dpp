@@ -31,3 +31,4 @@
 build/
 .kdev4/
 resources/
+*.kdev4
