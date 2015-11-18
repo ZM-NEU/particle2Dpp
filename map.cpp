@@ -3,7 +3,7 @@
 using namespace std;
 
 Map::Map() {
-	_numParticles = 1000;
+	_numParticles = 1000; //Random number
 	_particles = new particle[_numParticles];
 }
 
@@ -22,12 +22,14 @@ void Map::init_particles(int numParticles)
 	_numParticles = numParticles;
 	delete[] _particles;
 	_particles = new particle[_numParticles];
-	
+
 	// Randomly get the number of particles needed
 	// Don't want -1 cells
 	for(int i = 0; i < _numParticles; i++)
 	{
-		
+		do {
+			
+		} while(true);
 	}
 }
 
