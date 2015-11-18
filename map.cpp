@@ -12,6 +12,8 @@ using namespace std;
 Map::Map() {
 	_numParticles = 1000; //Random number
 	_particles = new particle[_numParticles];
+    _sigma_lidar = 10;
+    _sigma_odom = 10;
 }
 
 Map::~Map() {
@@ -44,7 +46,7 @@ void Map::init_particles(int numParticles)
 			_particles[i].pose.y = _map.min_y + rand()*y;
 			_particles[i].pose.theta = rand()*theta;
 			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
-		} while(prob <= 0.80); // Want to pick spaces that are free (close to 1)
+		} while(prob <= 0.99); // Want to pick spaces that are free (close to 1)
 	}
 }
 

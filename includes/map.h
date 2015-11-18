@@ -47,6 +47,8 @@ private:
     int _numParticles;
     particle* _particles;
 	logEntry _prevLog;
+    float _sigma_lidar;
+    float _sigma_odom;
 
     // Update the particle's weight
     float _get_particle_weight(lidarData data, particle p);
