@@ -45,8 +45,8 @@ int main(int argc, char **argv) {
 //	Inject random particles to track kidnapping scenario
 //
 //  Take from Probabilistic Robotics pdf
+//  NOTE: I pulled out relevant information and put it in particleFilterNotes pdf
 //  4.2 Particle Filter - pg77-84
 //  5.4 Odometry MotionModel - pg107-113
 //  6 Measurements - pg121-154
 //  8.3 MonteCarlo Localization - 200-209 [211-216]
-//  NOTE: I pulled out relevant information and put it in particleFilterNotes pdf

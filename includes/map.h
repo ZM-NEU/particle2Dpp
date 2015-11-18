@@ -57,4 +57,6 @@ private:
     // Get total probability of the map
     float _total_probability();
 };
+
+float wrap(float num, float min, float max);
 #endif // MAP_H

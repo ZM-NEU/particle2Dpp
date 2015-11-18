@@ -103,12 +103,14 @@ void Map::update_location(pose2D motion)
 {
     for(int i = 0; i < _numParticles; i++)
     {
-        // TODO: Find a good weighting system for the sample
+        
         _particles[i].pose.x += motion.x*(1 + _sample_with_variance(_sigma_odom));
         _particles[i].pose.y += motion.y*(1 + _sample_with_variance(_sigma_odom));
         float theta = _particles[i].pose.theta + motion.theta*(1 + _sample_with_variance(_sigma_odom));
+        
+        
         // wrap theta [0,2PI)
-        _particles[i].pose.theta = fmod(theta,2*PI) + ((theta < 0) ? 2*PI : 0);
+        _particles[i].pose.theta = wrap(theta, 0, 2*PI);
     }
 }
 
@@ -173,4 +175,12 @@ float Map::_total_probability() {
     }
     // 0.85 --> 156243
     fprintf(stderr, "Total: %i\tTotal less than %.2f: %i\n", numValid, max, numInRange);
+}
+
+// Used to wrap numbers i.e. wrap(angle, 0, 2PI)
+float wrap(float num, float min, float max)
+{
+    if(min > max)
+        fprintf(stderr, "ERROR min(%f) > max(%f) in WRAP",min, max);
+    return fmod(num, max) + ((num < min) ? max : 0);
 }
