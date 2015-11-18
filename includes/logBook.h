@@ -6,8 +6,9 @@ using namespace std;
 
 enum log_type
 {
+	INVALID = -1,
     ODOM = 0,
-    LIDAR = 1 
+    LIDAR = 1
 };
 
 typedef struct pose2D {

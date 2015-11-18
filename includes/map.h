@@ -31,6 +31,9 @@ public:
 	// Run through a log file
 	void run(vector<logEntry> log);
 
+	// Run a single logEntry
+	void run_single_step(logEntry logB);
+
     // Prediction Phase
     void update_location(step motion);
 
@@ -41,12 +44,13 @@ private:
     map_type _map;
     int _numParticles;
     particle* _particles;
+	logEntry _prevLog;
 
     // Update the particle's weight
     float _get_particle_weight(lidarData data, particle p);
 
     // Get total probability of the map
-    float total_probability();
+    float _total_probability();
 
     // Return the state with the highest probability
     pose2D _get_estimated_state();
