@@ -54,10 +54,10 @@ int read_beesoft_map(const char *mapName, map_type *map)
     count = 0;
     for(x = 0; x < map->size_x; x++)
         for(y = 0; y < map->size_y; y++, count++) {
-            if(count % 10000 == 0)
-                fprintf(stderr, "\r# Reading ... (%.2f%%)\n",
-                    count / (float)(map->size_x * map->size_y) * 100);
-            
+//             if(count % 10000 == 0)
+//                 fprintf(stderr, "\r# Reading ... (%.2f%%)\n",
+//                     count / (float)(map->size_x * map->size_y) * 100);
+
             fscanf(fp,"%e", &temp);
             if(temp < 0.0)
                 map->prob[x][y] = -1;
@@ -73,8 +73,8 @@ int read_beesoft_map(const char *mapName, map_type *map)
                 map->prob[x][y] = 1 - temp;
             }
         }
-    fprintf(stderr, "\r# Reading ... (%.2f%%)\n\n",
-        count / (float)(map->size_x * map->size_y) * 100);
+//     fprintf(stderr, "\r# Reading ... (%.2f%%)\n\n",
+//         count / (float)(map->size_x * map->size_y) * 100);
     fclose(fp);
     return 0;
 }

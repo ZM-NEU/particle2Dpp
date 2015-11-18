@@ -1,13 +1,17 @@
-#include "global.h"
+#ifndef LOGBOOK_H
+#define LOGBOOK_H
+
 #include <iostream>
 #include <vector>
+#define NUM_RANGES 180
 
 using namespace std;
 
 enum log_type
 {
+	INVALID = -1,
     ODOM = 0,
-    LIDAR = 1 
+    LIDAR = 1
 };
 
 typedef struct pose2D {
@@ -23,3 +27,4 @@ typedef struct logEntry {
 } logEntry;
 
 int import_logs(const char *logName, vector<logEntry> & logBook);
+#endif // LOGBOOK_H

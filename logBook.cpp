@@ -23,7 +23,7 @@ int import_logs(const char *logName, vector<logEntry> & logBook) {
         logEntry logData;
         char debugType;
         istringstream stringin(logLine);
-        
+
         string buf;
         vector<string> tokens;
         while(stringin >> buf) {
@@ -44,7 +44,7 @@ int import_logs(const char *logName, vector<logEntry> & logBook) {
             }
         }
         logBook.push_back(logData);
-        fprintf(stderr, "%c %f %f %f\n", logBook.back().logType, logBook.back().robotPose.x, logBook.back().robotPose.y, logBook.back().ts);
+//         fprintf(stderr, "%c %f %f %f\n", logBook.back().logType, logBook.back().robotPose.x, logBook.back().robotPose.y, logBook.back().ts);
     }
     log.close();
     return 1;
