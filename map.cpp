@@ -35,7 +35,7 @@ void Map::init_particles(int numParticles)
 	float y = (_map.max_y - _map.min_y)/(float)RAND_MAX;
 	float theta = 2*PI/(float)RAND_MAX;
 	float prob;
-	// Randomly get the number of particles needed
+	// Randomly get the particles needed
 	// Don't want -1 cells
 	for(int i = 0; i < _numParticles; i++)
 	{
@@ -44,7 +44,7 @@ void Map::init_particles(int numParticles)
 			_particles[i].pose.y = _map.min_y + rand()*y;
 			_particles[i].pose.theta = rand()*theta;
 			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
-		} while(prob == -1 || prob <= 0.9);
+		} while(prob <= 0.80); // Want to pick spaces that are free (close to 1)
 	}
 }
 
@@ -80,6 +80,7 @@ void Map::run_single_step(logEntry logB)
 	motion.previous.y = _prevLog.robotPose.y;
 	motion.previous.theta = _prevLog.robotPose.theta;
 	update_location(motion);
+    
 	// Get sensor data and update prediction
 	if(logB.logType == LIDAR)
 	{
@@ -89,6 +90,7 @@ void Map::run_single_step(logEntry logB)
 		}
 		update_prediction(data);
 	}
+	
 	// Save last log entry robot pose for next update
 	_prevLog.logType = logB.logType;
 	_prevLog.robotPose.x = logB.robotPose.x;
@@ -99,13 +101,19 @@ void Map::run_single_step(logEntry logB)
 // Move every particle by the odometry step with some uncertainty added
 void Map::update_location(step motion)
 {
-
+    for(int i = 0; i < _numParticles; i++)
+    {
+        
+    }
 }
 
 // Change the weights!
 void Map::update_prediction(lidarData data)
 {
-
+    for(int i = 0; i < _numParticles; i++)
+    {
+        
+    }
 }
 
 // Called by update_prediction to see how well lidarData matches for a particle p
@@ -140,4 +148,24 @@ float Map::_total_probability() {
 	}
 	// TODO: Fix "Declaration not found for fprintf(stderr,...);
 	fprintf(stderr, "Total P: %f\n", totalP);
+    
+    int numValid = 0;
+    int numInRange = 0;
+    float max = 0.9;
+    for(int i = 0; i < sx; i++)
+    {
+        for(int j = 0; j < sy; j++)
+        {
+            if(_map.prob[i][j] >= 0)
+            {
+                numValid++;
+                if(_map.prob[i][j] <= max)
+                {
+                    numInRange ++;
+                }
+            }
+        }
+    }
+    // 0.85 --> 156243
+    fprintf(stderr, "Total: %i\tTotal less than %.2f: %i\n", numValid, max, numInRange);
 }
