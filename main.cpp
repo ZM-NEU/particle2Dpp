@@ -27,7 +27,6 @@ int main(int argc, char **argv) {
     map1.init_map(map);
     map2.init_map(map);
 
-	// TODO: Put in a function in Map
 	int nParticles = 3500;
 	map1.init_particles(nParticles);
 	map1.run(logBook1);
@@ -35,15 +34,12 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-
-// MAP FUNCTIONS
-//	Pick a random point on the map given a distribution
-//	Find the distance to wall given (x,y,theta)
-
-// LOG FILE FUNCTIONS
-//	Read in the data
-
-// PARTICLE FUNCTIONS
-//	update particle position based off odometry
-//	update particle belief based off sensor data
-//	add random particles to track kidnapping scenario
+//  TODO
+//  MAP FUNCTIONS [BASIC]
+//	Pick a random point on the map given a distribution (resample)
+//	Find the true distance to wall given (x,y,theta)
+//  Move the particles with some uncertainty by the motion
+//  Update particles' belief based off sensor data with some uncertainty
+//
+//  MAP FUNCTIONS [EXTRA]
+//	Inject random particles to track kidnapping scenario

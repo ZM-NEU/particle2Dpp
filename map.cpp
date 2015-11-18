@@ -1,6 +1,10 @@
 #include "includes/map.h"
 #include <cmath>
+#include <iostream>
+#include <stdio.h>
+
 #define PI 3.14159
+#define NUM_RANGES 180
 
 using namespace std;
 
@@ -125,5 +129,6 @@ float Map::_total_probability() {
 			}
 		}
 	}
+	// TODO: Fix "Declaration not found for fprintf(stderr,...);
 	fprintf(stderr, "Total P: %f\n", totalP);
 }

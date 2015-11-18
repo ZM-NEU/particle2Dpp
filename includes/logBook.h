@@ -1,6 +1,9 @@
-#include "global.h"
+#ifndef LOGBOOK_H
+#define LOGBOOK_H
+
 #include <iostream>
 #include <vector>
+#define NUM_RANGES 180
 
 using namespace std;
 
@@ -24,3 +27,4 @@ typedef struct logEntry {
 } logEntry;
 
 int import_logs(const char *logName, vector<logEntry> & logBook);
+#endif // LOGBOOK_H

@@ -1,5 +1,7 @@
+#ifndef MAP_H
+#define MAP_H
+
 #include "bee-map.h"
-#include "global.h"
 #include "logBook.h"
 #include <vector>
 
@@ -55,3 +57,4 @@ private:
     // Return the state with the highest probability
     pose2D _get_estimated_state();
 };
+#endif // MAP_H
