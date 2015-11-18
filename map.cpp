@@ -64,6 +64,7 @@ void Map::run(vector<logEntry> logB)
 	}
 	for(int i = start_index; i < logB.size(); i++)
 	{
+        fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
 		run_single_step(logB[i]);
 	}
 }
@@ -74,13 +75,10 @@ void Map::run_single_step(logEntry logB)
 	lidarData data;
 	data.ranges = new float[NUM_RANGES];
 	// Get odometry and update motion
-	step motion;
-	motion.current.x = logB.robotPose.x;
-	motion.current.y = logB.robotPose.y;
-	motion.current.theta = logB.robotPose.theta;
-	motion.previous.x = _prevLog.robotPose.x;
-	motion.previous.y = _prevLog.robotPose.y;
-	motion.previous.theta = _prevLog.robotPose.theta;
+	pose2D motion;
+    motion.x = logB.robotPose.x - _prevLog.robotPose.x;
+    motion.y = logB.robotPose.y - _prevLog.robotPose.y;
+    motion.theta = logB.robotPose.theta - _prevLog.robotPose.theta;
 	update_location(motion);
     
 	// Get sensor data and update prediction
@@ -101,11 +99,16 @@ void Map::run_single_step(logEntry logB)
 }
 
 // Move every particle by the odometry step with some uncertainty added
-void Map::update_location(step motion)
+void Map::update_location(pose2D motion)
 {
     for(int i = 0; i < _numParticles; i++)
     {
-        
+        // TODO: Find a good weighting system for the sample
+        _particles[i].pose.x += motion.x*(1 + _sample_with_variance(_sigma_odom));
+        _particles[i].pose.y += motion.y*(1 + _sample_with_variance(_sigma_odom));
+        float theta = _particles[i].pose.theta + motion.theta*(1 + _sample_with_variance(_sigma_odom));
+        // wrap theta [0,2PI)
+        _particles[i].pose.theta = fmod(theta,2*PI) + ((theta < 0) ? 2*PI : 0);
     }
 }
 
@@ -125,7 +128,7 @@ float Map::_get_particle_weight(lidarData data, particle p)
 }
 
 // Sample 0 mean gaussian with variance sigma;
-float _sample_with_variance(float sigma)
+float Map::_sample_with_variance(float sigma)
 {
     default_random_engine generator;
     normal_distribution<float> distribution(0,sigma);

@@ -12,11 +12,6 @@ typedef struct particle {
     float weight;
 } particle;
 
-typedef struct step {
-    pose2D current;
-    pose2D previous;
-} step;
-
 typedef struct lidarData {
     float* ranges;
 } lidarData;
@@ -37,7 +32,7 @@ public:
 	void run_single_step(logEntry logB);
 
     // Prediction Phase
-    void update_location(step motion);
+    void update_location(pose2D motion);
 
     // Update Phase
     void update_prediction(lidarData data);
