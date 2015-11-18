@@ -1,4 +1,6 @@
 #include "includes/map.h"
+#include <cmath>
+#define PI 3.14159
 
 using namespace std;
 
@@ -23,13 +25,46 @@ void Map::init_particles(int numParticles)
 	delete[] _particles;
 	_particles = new particle[_numParticles];
 
+	float x = (_map.max_x - _map.min_x)/(float)RAND_MAX;
+	float y = (_map.max_y - _map.min_y)/(float)RAND_MAX;
+	float theta = 2*PI/(float)RAND_MAX;
+	float prob;
 	// Randomly get the number of particles needed
 	// Don't want -1 cells
 	for(int i = 0; i < _numParticles; i++)
 	{
 		do {
-			
-		} while(true);
+			_particles[i].pose.x = _map.min_x + rand()*x;
+			_particles[i].pose.y = _map.min_y + rand()*y;
+			_particles[i].pose.theta = rand()*theta;
+			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
+		} while(prob == -1 || prob <= 0.9);
+	}
+}
+
+// Run through a log file
+void Map::run(vector<logEntry> logB)
+{
+	lidarData data;
+	data.ranges = new float[NUM_RANGES];
+	for(int i = 1; i < logB.size(); i++)
+	{
+		step motion;
+		motion.current.x = logB[i-1].robotPose.x;
+		motion.current.y = logB[i-1].robotPose.y;
+		motion.current.theta = logB[i-1].robotPose.theta;
+		motion.previous.x = logB[i].robotPose.x;
+		motion.previous.y = logB[i].robotPose.y;
+		motion.previous.theta = logB[i].robotPose.theta;
+		update_location(motion);
+		if(logB[i].logType == LIDAR)
+		{
+			for(int phi = 0; phi < NUM_RANGES; phi++)
+			{
+				data.ranges[phi] = logB[i].ranges[phi];
+			}
+			update_prediction(data);
+		}
 	}
 }
 

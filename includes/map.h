@@ -16,35 +16,38 @@ typedef struct step {
 } step;
 
 typedef struct lidarData {
-    float ranges[NUM_RANGES];
+    float* ranges;
 } lidarData;
 
 class Map {
 public:
     Map();
     ~Map();
-    
+
     // Load map_type
     void init_map(map_type map);
     void init_particles(int numParticles);
-    
+
+	// Run through a log file
+	void run(vector<logEntry> log);
+
     // Prediction Phase
     void update_location(step motion);
-    
-    // Update Phase 
+
+    // Update Phase
     void update_prediction(lidarData data);
 
 private:
     map_type _map;
     int _numParticles;
     particle* _particles;
-    
+
     // Update the particle's weight
     float _get_particle_weight(lidarData data, particle p);
-    
+
     // Get total probability of the map
     float total_probability();
-    
+
     // Return the state with the highest probability
-    pose2D _get_estimated_state(); 
+    pose2D _get_estimated_state();
 };
