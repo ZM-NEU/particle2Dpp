@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <stdio.h>
+#include <random>
 
 #define PI 3.14159
 #define NUM_RANGES 180
@@ -116,7 +117,9 @@ float Map::_get_particle_weight(lidarData data, particle p)
 // Sample 0 mean gaussian with variance sigma;
 float _sample_with_variance(float sigma)
 {
-    
+    default_random_engine generator;
+    normal_distribution<float> distribution(0,sigma);
+    return distribution(generator);
 }
 
 // Return the total probability on the map (to normalize)

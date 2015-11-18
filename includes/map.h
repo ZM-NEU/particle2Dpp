@@ -58,6 +58,6 @@ private:
     float _sample_with_variance(float sigma);
     
     // Get total probability of the map
-    float total_probability();
+    float _total_probability();
 };
 #endif // MAP_H
