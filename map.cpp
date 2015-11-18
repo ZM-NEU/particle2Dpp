@@ -49,6 +49,12 @@ float _get_particle_weight(lidarData data, particle p)
 
 }
 
+// Sample 0 mean gaussian with variance sigma;
+float _sample_with_variance(float sigma)
+{
+    
+}
+
 // Return the total probability on the map (to normalize)
 // TODO: Evaluate if this is needed or only sum of weights for chosen particles
 float Map::total_probability() {
