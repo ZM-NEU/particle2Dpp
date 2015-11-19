@@ -1,6 +1,7 @@
 #include "includes/map.h"
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <random>
 
@@ -66,6 +67,11 @@ void Map::run(vector<logEntry> logB)
 	{
         fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
 		run_single_step(logB[i]);
+        int p = 1;
+        for(p; p < _numParticles - 1; p++)
+        {
+            // Plot
+        }
 	}
 }
 
