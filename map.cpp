@@ -80,7 +80,7 @@ void Map::run_single_step(logEntry logB)
     motion.y = logB.robotPose.y - _prevLog.robotPose.y;
     motion.theta = logB.robotPose.theta - _prevLog.robotPose.theta;
 	update_location(motion);
-    
+
 	// Get sensor data and update prediction
 	if(logB.logType == LIDAR)
 	{
@@ -90,7 +90,7 @@ void Map::run_single_step(logEntry logB)
 		}
 		update_prediction(data);
 	}
-	
+
 	// Save last log entry robot pose for next update
 	_prevLog.logType = logB.logType;
 	_prevLog.robotPose.x = logB.robotPose.x;
@@ -103,14 +103,9 @@ void Map::update_location(pose2D motion)
 {
     for(int i = 0; i < _numParticles; i++)
     {
-        
-        _particles[i].pose.x += motion.x*(1 + _sample_with_variance(_sigma_odom));
-        _particles[i].pose.y += motion.y*(1 + _sample_with_variance(_sigma_odom));
-        float theta = _particles[i].pose.theta + motion.theta*(1 + _sample_with_variance(_sigma_odom));
-        
-        
+		_particles[i] = _sample_motion_model_odometry(motion, _particles[i].pose);
         // wrap theta [0,2PI)
-        _particles[i].pose.theta = wrap(theta, 0, 2*PI);
+        _particles[i].pose.theta = wrap(_particles[i].pose.theta, 0, 2*PI);
     }
 }
 
@@ -119,8 +114,28 @@ void Map::update_prediction(lidarData data)
 {
     for(int i = 0; i < _numParticles; i++)
     {
-        
+
     }
+}
+
+// From Probabilistic Robotics book - samples motion
+pose2D Map::_sample_motion_model_odometry(pose2D motion, pose2D particle_pose)
+{
+	float a1 = 0.1;
+	float a2 = 0.1;
+	float a3 = 0.1;
+	float a4 = 0.1;
+	float dr1 = atan2(motion.y, motion.x) - particle_pose.theta;
+	float dtr = sqrt(motion.x*motion.x + motion.y*motion.y);
+	float dr2 = motion.theta - dr1;
+	float dhr1 = dr1 - _sample_with_variance(a1*dr1 + a2*dtr);
+	float dhtr = dtr - _sample_with_variance(a3*dtr + a4*(dr1 + dr2));
+	float dhr2 = dr2 - _sample_with_variance(a1*dr2 + a2*dtr);
+	pose2D newPose;
+	newPose.x = particle_pose.x + dhtr*cos(particle_pose.theta + dhr1);
+	newPose.y = particle_pose.y + dhtr*sin(particle_pose.theta + dhr1);
+	newPose.theta = particle_pose.theta + dhr1 + dhr2;
+	return newPose;
 }
 
 // Called by update_prediction to see how well lidarData matches for a particle p
@@ -155,7 +170,7 @@ float Map::_total_probability() {
 	}
 	// TODO: Fix "Declaration not found for fprintf(stderr,...);
 	fprintf(stderr, "Total P: %f\n", totalP);
-    
+
     int numValid = 0;
     int numInRange = 0;
     float max = 0.9;
