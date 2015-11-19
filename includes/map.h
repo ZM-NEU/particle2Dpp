@@ -45,15 +45,18 @@ private:
     float _sigma_lidar;
     float _sigma_odom;
 
+	// From Probabilistic Robotics book 
+	pose2D _sample_motion_model_odometry(pose2D motion, pose2D particle_pose);
+
     // Update the particle's weight
     float _get_particle_weight(lidarData data, particle p);
-    
+
     // Return the state with the highest probability
-    pose2D _get_estimated_state(); 
-    
+    pose2D _get_estimated_state();
+
     // Sample 0 mean gaussian with variance sigma;
     float _sample_with_variance(float sigma);
-    
+
     // Get total probability of the map
     float _total_probability();
 };
