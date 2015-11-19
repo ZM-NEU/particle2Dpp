@@ -96,7 +96,7 @@ void Map::run(vector<logEntry> logB)
             float theta = _particles[p].pose.theta;
             if(x > 0 && x < _map.size_x && y > 0 && y < _map.size_y)
             {
-                fprintf(stderr, "p: %i (x:%i  y:%i)\n",p,x,y);
+                fprintf(stderr, "p: %i (x:%i  y:%i  t:%.2f)\n",p,x,y,theta);
                 cv::circle(temp_map, cv::Point(y, x), 2, cv::Scalar(0, 0, 255));
 //                 cv::line(temp_map, cv::Point(405, 400), cv::Point(395, 400), cv::Scalar(0, 0, 255));
     //             cv::line(temp_map, cv::Point(395, 400), cv::Point(400, 405), cv::Scalar(0, 0, 255));
