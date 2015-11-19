@@ -3,6 +3,9 @@
 
 #include "bee-map.h"
 #include "logBook.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp> 
 #include <vector>
 
 using namespace std;
@@ -44,6 +47,7 @@ private:
 	logEntry _prevLog;
     float _sigma_lidar;
     float _sigma_odom;
+    cv::Mat _mapImage;
 
 	// From Probabilistic Robotics book 
 	pose2D _sample_motion_model_odometry(pose2D motion, pose2D particle_pose);

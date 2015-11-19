@@ -5,10 +5,6 @@
 #include "includes/bee-map.h"
 #include "includes/map.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp> 
-
 using namespace std;
 
 int main(int argc, char **argv) {
@@ -26,42 +22,16 @@ int main(int argc, char **argv) {
     printf("Number of entries in Log1: %lu\n",logBook1.size());
     printf("Number of entries in Log2: %lu\n",logBook2.size());
 
-    read_beesoft_map(map_name.c_str(), &map);
-    
-    cv::Mat _map_image;
-    _map_image = cv::Mat::zeros( map.size_x, map.size_y, CV_8UC1 );
-    for(int i = 0; i < _map_image.rows; i++)
-    {
-        for(int j = 0; j < _map_image.cols; j++)
-        {
-            if(map.prob[i][j] < 0)
-                _map_image.at<uint8_t>(i, j) = 0;
-            else if(map.prob[i][j] > 0.20)
-                _map_image.at<uint8_t>(i, j) = 0;
-            else
-                _map_image.at<uint8_t>(i, j) = 255;
-        }
-    }
-    printf("prob = %f\n", map.prob[400][400]);
-    printf("prob = %f\n", map.prob[450][450]);
-    cv::cvtColor(_map_image, _map_image, CV_GRAY2RGB);
-    //cv::circle(_map_image, cv::Point(400, 400), 4, cv::Scalar(0, 0, 255));
-    cv::line(_map_image, cv::Point(405, 400), cv::Point(395, 400), cv::Scalar(0, 0, 255));
-    cv::line(_map_image, cv::Point(395, 400), cv::Point(400, 405), cv::Scalar(0, 0, 255));
-    cv::line(_map_image, cv::Point(400, 405), cv::Point(405, 400), cv::Scalar(0, 0, 255));
-    cv::line(_map_image, cv::Point(450, 455), cv::Point(455, 450), cv::Scalar(0, 0, 255));
-    imshow("Image", _map_image);
-    cv::waitKey(10000);
-    
+    read_beesoft_map(map_name.c_str(), &map);    
     
     Map map1 = Map();
     Map map2 = Map();
     map1.init_map(map);
     map2.init_map(map);
 
-	int nParticles = 3500;
+	int nParticles = 300;
 	map1.init_particles(nParticles);
-	//map1.run(logBook1);
+	map1.run(logBook1);
 
     return 0;
 }

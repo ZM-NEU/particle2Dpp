@@ -1,4 +1,7 @@
 #include "includes/map.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp> 
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -25,6 +28,21 @@ Map::~Map() {
 void Map::init_map(map_type map) {
 	_map = map;
 	_prevLog.logType = INVALID;
+    
+    // Save map as an opencv Mat type to draw on later
+    _mapImage = cv::Mat::zeros( map.size_x, map.size_y, CV_8UC1 );
+    for(int i = 0; i < _mapImage.rows; i++)
+    {
+        for(int j = 0; j < _mapImage.cols; j++)
+        {
+            if(map.prob[i][j] < 0)
+                _mapImage.at<uint8_t>(i, j) = 0;
+            else if(map.prob[i][j] > 0.20)
+                _mapImage.at<uint8_t>(i, j) = 0;
+            else
+                _mapImage.at<uint8_t>(i, j) = 255;
+        }
+    }
 }
 
 // Create the particles!
@@ -47,7 +65,7 @@ void Map::init_particles(int numParticles)
 			_particles[i].pose.y = _map.min_y + rand()*y;
 			_particles[i].pose.theta = rand()*theta;
 			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
-		} while(prob <= 0.99); // Want to pick spaces that are free (close to 1)
+		} while(prob > 0.1 || prob < 0); // Want to pick spaces that are free (close to 1)
 	}
 }
 
@@ -67,11 +85,30 @@ void Map::run(vector<logEntry> logB)
 	{
         fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
 		run_single_step(logB[i]);
+        cv::Mat temp_map;
+        cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
         int p = 1;
         for(p; p < _numParticles - 1; p++)
         {
             // Plot
+            int x = (int)_particles[p].pose.x;
+            int y = (int)_particles[p].pose.y;
+            float theta = _particles[p].pose.theta;
+            if(x > 0 && x < _map.size_x && y > 0 && y < _map.size_y)
+            {
+                fprintf(stderr, "p: %i (x:%i  y:%i)\n",p,x,y);
+                cv::circle(temp_map, cv::Point(y, x), 2, cv::Scalar(0, 0, 255));
+//                 cv::line(temp_map, cv::Point(405, 400), cv::Point(395, 400), cv::Scalar(0, 0, 255));
+    //             cv::line(temp_map, cv::Point(395, 400), cv::Point(400, 405), cv::Scalar(0, 0, 255));
+    //             cv::line(temp_map, cv::Point(400, 405), cv::Point(405, 400), cv::Scalar(0, 0, 255));
+            }
+            else{
+                //fprintf(stderr, "p: %i (x:%i  y:%i)\n",p,x,y);
+            }
         }
+        imshow("Image", temp_map);
+        cv::waitKey(10);
+        temp_map = cv::Mat();
 	}
 }
 
@@ -109,7 +146,7 @@ void Map::update_location(pose2D motion)
 {
     for(int i = 0; i < _numParticles; i++)
     {
-		_particles[i] = _sample_motion_model_odometry(motion, _particles[i].pose);
+		_particles[i].pose = _sample_motion_model_odometry(motion, _particles[i].pose);
         // wrap theta [0,2PI)
         _particles[i].pose.theta = wrap(_particles[i].pose.theta, 0, 2*PI);
     }
