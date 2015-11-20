@@ -12,11 +12,11 @@ using namespace std;
 
 typedef struct particle {
     pose2D pose;
-    float weight;
+    double weight;
 } particle;
 
 typedef struct lidarData {
-    float* ranges;
+    double* ranges;
 } lidarData;
 
 class Map {
@@ -48,35 +48,35 @@ private:
     cv::Mat _mapImage;
     double _threshold;
 	double _max_laser;
-	float _z_hit;
-	float _z_short;
-	float _z_max;
-	float _z_rand;
-	float _sigma_hit;
-	float _lambda_short;
-	float _a1;
-	float _a2;
-	float _a3;
-	float _a4;
+    double _z_hit;
+    double _z_short;
+    double _z_max;
+    double _z_rand;
+    double _sigma_hit;
+    double _lambda_short;
+    double _a1;
+    double _a2;
+    double _a3;
+    double _a4;
 
 	// From Probabilistic Robotics book
 	pose2D _sample_motion_model_odometry(pose2D motion, pose2D particle_pose);
 
     // Update the particle's weight
-    float _get_particle_weight(lidarData data, int p);
+    double _get_particle_weight(lidarData data, int p);
 
     // Return the state with the highest probability
     pose2D _get_estimated_state();
 
     // Sample 0 mean gaussian with variance sigma;
-    float _sample_with_variance(float sigma);
+    double _sample_with_variance(double sigma);
 
 	// From book
-    void _low_variance_sampler(float eta_weights);
+    void _low_variance_sampler(double eta_weights);
 
 	// Ray trace to find the expected distance
-    float _raytrace(pose2D vec, float range);
+    double _raytrace(pose2D vec, double range);
 };
 
-float wrap(float num, float min, float max);
+double wrap(double num, double min, double max);
 #endif // MAP_H

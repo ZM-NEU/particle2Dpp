@@ -15,7 +15,9 @@ enum log_type
 };
 
 typedef struct pose2D {
-    float x, y, theta;
+    double x;
+    double y;
+    double theta;
 } pose2D;
 
 typedef struct logEntry {
@@ -23,7 +25,7 @@ typedef struct logEntry {
     pose2D robotPose;
     pose2D lidarPose;
     double ts;
-    float ranges[NUM_RANGES];
+    double ranges[NUM_RANGES];
 } logEntry;
 
 int import_logs(const char *logName, vector<logEntry> & logBook);
