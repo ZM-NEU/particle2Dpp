@@ -33,6 +33,8 @@ public:
 
 	// Run a single logEntry
 	void run_single_step(logEntry logB);
+    
+    void augmented_MCL(logEntry logB);
 
     // Prediction Phase
     void update_location(pose2D motion);
@@ -58,6 +60,8 @@ private:
     double _a2;
     double _a3;
     double _a4;
+    double _a_slow;
+    double _a_fast;
 
 	// From Probabilistic Robotics book
 	pose2D _sample_motion_model_odometry(pose2D motion, pose2D particle_pose);

@@ -3,6 +3,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <cmath>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
@@ -34,6 +35,12 @@ Map::Map() {
 	_a2 = 0.01;
 	_a3 = 0.1;
 	_a4 = 0.1;
+    
+    // Augmented_MCL Parameters
+    _a_slow = 0.05;
+    _a_fast = 0.2;
+    
+    //srand();
 }
 
 Map::~Map() {
@@ -46,7 +53,7 @@ void Map::init_map(map_type map) {
 	_prevLog.logType = INVALID;
 
     // Save map as an opencv Mat type to draw on later
-    _mapImage = cv::Mat::zeros( map.size_x, map.size_y, CV_8UC1 );
+    _mapImage = cv::Mat::zeros(map.size_x, map.size_y, CV_8UC1);
     for(int i = 0; i < _mapImage.rows; i++)
     {
         for(int j = 0; j < _mapImage.cols; j++)
@@ -100,8 +107,8 @@ void Map::run(vector<logEntry> logB)
 	}
 	for(int i = start_index; i < logB.size(); i++)
 	{
-        fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
-		run_single_step(logB[i]);
+        //fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
+        augmented_MCL(logB[i]);
         cv::Mat temp_map;
         cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
         int p = 1;
@@ -112,9 +119,9 @@ void Map::run(vector<logEntry> logB)
             int y = (int)_particles[p].pose.y;
             double theta = _particles[p].pose.theta;
 			cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
-//          cv::line(temp_map, cv::Point(405, 400), cv::Point(395, 400), cv::Scalar(0, 0, 255));
-//          cv::line(temp_map, cv::Point(395, 400), cv::Point(400, 405), cv::Scalar(0, 0, 255));
-//          cv::line(temp_map, cv::Point(400, 405), cv::Point(405, 400), cv::Scalar(0, 0, 255));
+//             int xp = x + (int)5*cos(_particles[p].pose.theta);
+//             int yp = y - (int)5*sin(_particles[p].pose.theta);
+//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
         }
         cv::imshow("Image", temp_map);
         cv::waitKey(10);
@@ -123,96 +130,101 @@ void Map::run(vector<logEntry> logB)
 }
 
 // Updates the map for a single logEntry
-void Map::run_single_step(logEntry logB)
+void Map::augmented_MCL(logEntry logB)
 {
-	lidarData data;
-    data.ranges = new double[NUM_RANGES];
-	// Get odometry and update motion
-	pose2D motion;
+    static double w_slow;
+    static double w_fast;
+    double w_avg = 0;
+    pose2D motion;
     motion.x = logB.robotPose.x - _prevLog.robotPose.x;
     motion.y = logB.robotPose.y - _prevLog.robotPose.y;
     motion.theta = logB.robotPose.theta - _prevLog.robotPose.theta;
-	if(fabs(motion.x) < 0.01  && fabs(motion.y) < 0.01 && fabs(motion.theta) < 0.01)
-	{
-		return;
-	}
-	update_location(motion);
-
-	// Get sensor data and update prediction
-	if(logB.logType == LIDAR)
-	{
-		for(int phi = 0; phi < NUM_RANGES; phi++)
-		{
-			data.ranges[phi] = logB.ranges[phi];
-		}
-		update_prediction(data);
-	}
-
-	// Save last log entry robot pose for next update
-	_prevLog.logType = logB.logType;
-	_prevLog.robotPose.x = logB.robotPose.x;
-	_prevLog.robotPose.y = logB.robotPose.y;
-	_prevLog.robotPose.theta = logB.robotPose.theta;
-}
-
-// Move every particle by the odometry step with some uncertainty added
-void Map::update_location(pose2D motion)
-{
+    if(fabs(motion.x) < 0.01  && fabs(motion.y) < 0.01 && fabs(motion.theta) < 0.01)
+    {
+        return;
+    }
+    lidarData data;
+    double eta_weights = 0;
+    data.ranges = new double[NUM_RANGES];
+    for(int m = 0; m < _numParticles; m++)
+    {
+        // Sample Motion Model
+        _particles[m].pose = _sample_motion_model_odometry(motion, _particles[m].pose);
+        
+        // Measurement Model
+        if(logB.logType == LIDAR)
+        {
+            for(int phi = 0; phi < NUM_RANGES; phi++)
+            {
+                data.ranges[phi] = logB.ranges[phi];
+            }
+            _particles[m].weight = _get_particle_weight(data, m);
+        }
+        eta_weights += _particles[m].weight;
+    }
+    
+    //fprintf(stderr,"eta_weights: %f\n",eta_weights);
+    double sum = 0;
+    for(int m = 0; m < _numParticles; m++)
+    {
+        _particles[m].weight /= eta_weights;
+        sum += _particles[m].weight;
+        w_avg += _particles[m].weight/_numParticles;
+    }
+    //fprintf(stderr, "sum: %f calcAvg: %f actAvg: %f\n",sum,w_avg,sum/_numParticles);
+    
+    w_slow += _a_slow*(w_avg - w_slow);
+    w_fast += _a_fast*(w_avg - w_fast);
+    double p_rand_pose = 1.0 - w_fast/w_slow;
+    double r_rand_pose = rand()/(double)RAND_MAX;
+    //fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
+    particle* samples = new particle[_numParticles];
+    double r = (rand()/(double)RAND_MAX)/_numParticles;
+    double c = _particles[0].weight;
+    int i = 0;
+    for(int m = 0; m < _numParticles; m++)
+    {
+        if(p_rand_pose > 0 && r_rand_pose < p_rand_pose)
+        {
+            double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
+            double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
+            double theta = 2*PI/(double)RAND_MAX;
+            double prob;
+            // Draw a new random position
+            do {
+                samples[m].pose.x = _map.min_x + rand()*x;
+                samples[m].pose.y = _map.min_y + rand()*y;
+                samples[m].pose.theta = rand()*theta;
+                // TODO: Figure out if a weight is needed here??!??!
+                samples[m].weight = 1.0/_numParticles;
+                prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
+            } while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
+        }
+        else{
+            double u = r + ((double)m)/((double)_numParticles);
+            while(u > c)
+            {
+                if(i >= _numParticles)
+                    continue;
+                i++;
+                c += _particles[i].weight;
+            }
+            samples[m] = _particles[i];
+        }
+    }
     for(int i = 0; i < _numParticles; i++)
     {
-		_particles[i].pose = _sample_motion_model_odometry(motion, _particles[i].pose);
-        // wrap theta [0,2PI)
-        _particles[i].pose.theta = wrap(_particles[i].pose.theta, 0, 2*PI);
+        _particles[i].pose.x = samples[i].pose.x;
+        _particles[i].pose.y = samples[i].pose.y;
+        _particles[i].pose.theta = samples[i].pose.theta;
+        _particles[i].weight = samples[i].weight;
     }
-}
-
-// Change the weights!
-void Map::update_prediction(lidarData data)
-{
-    double eta_weights = 0;
-	for(int i = 0; i < _numParticles; i++)
-	{
-		_particles[i].weight = _get_particle_weight(data, i);
-		eta_weights += _particles[i].weight;
-	}
-	_low_variance_sampler(eta_weights);
-}
-
-// From book
-void Map::_low_variance_sampler(double eta_weights)
-{
-	particle* samples = new particle[_numParticles];
-    double r = (rand()/(double)RAND_MAX)/_numParticles;
-    double c = _particles[0].weight/eta_weights;
-// 	fprintf(stderr,"r:%f c:%f\n",r,c);
-	int i = 0;
-	for(int m = 0; m < _numParticles; m++)
-	{
-        double u = r + ((double)m)/((double)_numParticles);
-		while(u > c)
-		{
-            if(i >= _numParticles)
-                continue;
-            i++;
-			c += _particles[i].weight/eta_weights;
-// 			if(i >= _numParticles)
-// 				fprintf(stderr,"want u:%f > c:%f at index i:%i OUTSIDE OF RANGE!!!!! m:%i\n",u,c,i,m);
-		}
-// 		samples[m] = _particles[i];
-		samples[m].pose.x = _particles[i].pose.x;
-		samples[m].pose.y = _particles[i].pose.y;
-		samples[m].pose.theta = _particles[i].pose.theta;
-		samples[m].weight = _particles[i].weight;
-	}
-	for(int i = 0; i < _numParticles; i++)
-	{
-		_particles[i].pose.x = samples[i].pose.x;
-		_particles[i].pose.y = samples[i].pose.y;
-		_particles[i].pose.theta = samples[i].pose.theta;
-		_particles[i].weight = samples[i].weight;
-	}
-//     delete _particles;
-// 	_particles = samples;
+    
+    // Save last log entry robot pose for next update
+    _prevLog.logType = logB.logType;
+    _prevLog.robotPose.x = logB.robotPose.x;
+    _prevLog.robotPose.y = logB.robotPose.y;
+    _prevLog.robotPose.theta = logB.robotPose.theta;
 }
 
 // From Probabilistic Robotics book - samples motion
@@ -227,7 +239,8 @@ pose2D Map::_sample_motion_model_odometry(pose2D motion, pose2D particle_pose)
 	pose2D newPose;
 	newPose.x = particle_pose.x + dhtr*cos(particle_pose.theta + dhr1);
 	newPose.y = particle_pose.y + dhtr*sin(particle_pose.theta + dhr1);
-	newPose.theta = particle_pose.theta + dhr1 + dhr2;
+// 	newPose.theta = particle_pose.theta + dhr1 + dhr2;
+    newPose.theta = wrap(particle_pose.theta + dhr1 + dhr2, 0, 2*PI);
 	return newPose;
 }
 
@@ -259,7 +272,7 @@ double Map::_get_particle_weight(lidarData data, int p)
         double p_max = (data.ranges[i] > _max_laser - 0.1 ? 1 : 0);
         double p_rand = 1.0/_max_laser;
         double p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
-		weight += p_total;
+		weight += log(p_total);
 	}
 	return weight;
 }
