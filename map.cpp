@@ -116,8 +116,8 @@ void Map::run(vector<logEntry> logB)
 //          cv::line(temp_map, cv::Point(395, 400), cv::Point(400, 405), cv::Scalar(0, 0, 255));
 //          cv::line(temp_map, cv::Point(400, 405), cv::Point(405, 400), cv::Scalar(0, 0, 255));
         }
-//         imshow("Image", temp_map);
-//         cv::waitKey(100);
+        //imshow("Image", temp_map);
+        //cv::waitKey(10);
         temp_map = cv::Mat();
 	}
 }
@@ -172,31 +172,17 @@ void Map::update_location(pose2D motion)
 void Map::update_prediction(lidarData data)
 {
 	float eta_weights = 0;
-	//fprintf(stderr,"Pw1 ");
+    fprintf(stderr, "AvgW: %f",1.0/_numParticles);
 	for(int i = 0; i < _numParticles; i++)
 	{
-		//fprintf(stderr,"%.5f ",_particles[i].weight);
-	}
-	//fprintf(stderr,"\nPw2 ");
-	for(int i = 0; i < _numParticles; i++)
-	{
-		_particles[i].weight = .1;//_get_particle_weight(data, i);
-		//fprintf(stderr,"%.5f ",_particles[i].weight);
+        float a = 1.0/_numParticles;
+        float b = 0.0003333f;
+        //float c = _get_particle_weight(data,i);
+        //fprintf(stderr,"a:%.7f b:%.7f \n",a,b);
+		_particles[i].weight = b;//1.0/_numParticles;//_get_particle_weight(data, i);
 		eta_weights += _particles[i].weight;
 	}
-	//fprintf(stderr, "\nSumW: %f\nPw3 ",eta_weights);
-	for(int i = 0; i < _numParticles; i ++)
-	{
-		_particles[i].weight /= eta_weights;
-		//fprintf(stderr,"%.5f ",_particles[i].weight);
-	}
 	_low_variance_sampler(eta_weights);
-	//fprintf(stderr,"\nPw4 ");
-    for(int i = 0; i < _numParticles; i++)
-    {
-		//fprintf(stderr,"%.5f ",_particles[i].weight);
-    }
-    //fprintf(stderr,"\n");
 }
 
 // From book
@@ -204,33 +190,36 @@ void Map::_low_variance_sampler(float eta_weights)
 {
 	particle* samples = new particle[_numParticles];
 	float r = (rand()/(float)RAND_MAX)/_numParticles;
-// 	float c = _particles[0].weight/eta_weights;
-	float c = _particles[0].weight;
-	fprintf(stderr,"r:%f c:%f\n",r,c);
+ 	float c = _particles[0].weight/eta_weights;
+// 	fprintf(stderr,"r:%f c:%f\n",r,c);
 	int i = 0;
 	for(int m = 0; m < _numParticles; m++)
 	{
-		float u = r + (float)m*_numParticles;
+		float u = r + ((float)m)/((float)_numParticles);
 		while(u > c)
 		{
-// 			c = _particles[++i].weight/eta_weights;
-			c = _particles[++i].weight;
-			if(i >= _numParticles)
-				fprintf(stderr,"i:%i OUTSIDE OF RANGE!!!!! m:%i\n",i,m);
+            if(i >= _numParticles)
+                continue;
+            i++;
+			c += _particles[i].weight/eta_weights;
+// 			if(i >= _numParticles)
+// 				fprintf(stderr,"want u:%f > c:%f at index i:%i OUTSIDE OF RANGE!!!!! m:%i\n",u,c,i,m);
 		}
-		samples[m].pose.x = _particles[i].pose.x;
-		samples[m].pose.y = _particles[i].pose.y;
-		samples[m].pose.theta = _particles[i].pose.theta;
-		samples[m].weight = _particles[i].weight;
+		samples[m] = _particles[i];
+// 		samples[m].pose.x = _particles[i].pose.x;
+// 		samples[m].pose.y = _particles[i].pose.y;
+// 		samples[m].pose.theta = _particles[i].pose.theta;
+// 		samples[m].weight = _particles[i].weight;
 	}
-	for(int i = 0; i < _numParticles; i++)
-	{
-		_particles[i].pose.x = samples[i].pose.x;
-		_particles[i].pose.y = samples[i].pose.y;
-		_particles[i].pose.theta = samples[i].pose.theta;
-		_particles[i].weight = samples[i].weight;
-	}
-// 	_particles = samples;
+// 	for(int i = 0; i < _numParticles; i++)
+// 	{
+// 		_particles[i].pose.x = samples[i].pose.x;
+// 		_particles[i].pose.y = samples[i].pose.y;
+// 		_particles[i].pose.theta = samples[i].pose.theta;
+// 		_particles[i].weight = samples[i].weight;
+// 	}
+    delete _particles;
+	_particles = samples;
 }
 
 // From Probabilistic Robotics book - samples motion
@@ -252,6 +241,8 @@ pose2D Map::_sample_motion_model_odometry(pose2D motion, pose2D particle_pose)
 // Called by update_prediction to see how well lidarData matches for a particle p
 float Map::_get_particle_weight(lidarData data, int p)
 {
+//     return 1.0/_numParticles;
+    return 0.0003333;
 	pose2D particle_pose = _particles[p].pose;
 	float lidar_offset = 2.5;
 	pose2D lidar;
@@ -264,29 +255,10 @@ float Map::_get_particle_weight(lidarData data, int p)
 	//fprintf(stderr, "2.5 = %.3f\n",tr);
 
 	float prob = _map.prob[(int)lidar.x][(int)lidar.y];
-	if(lidar.x < _map.min_x || lidar.x > _map.max_x)
+	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y || prob < 0 || prob > _threshold)
 	{
-		//fprintf(stderr, "X RETURN!");
-		//fprintf(stderr,"(mx %i < lx %.3f < Xx %i) ",_map.min_x,lidar.x,_map.max_x);
-		return 0.00;
+		return 0.000;
 	}
-	if(lidar.y < _map.min_y || lidar.y > _map.max_y)
-	{
-		//fprintf(stderr, "Y RETURN!");
-		//fprintf(stderr,"(my %i < ly %.3f < Xy %i) ",_map.min_y,lidar.y,_map.max_y);
-		return 0.00;
-	}
-	if(prob < 0 || prob > _threshold)
-	{
-		//fprintf(stderr, "P RETURN!\n");
-		//fprintf(stderr,"(mp 0 < p %.3f < Xp %.3f) ",prob,_threshold);
-		return 0.00;
-	}
-// 	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y < _map.max_y || prob < 0 || prob > _threshold)
-// 	{
-//  		//fprintf(stderr,"RETURN EARLY\n");
-// 		return 0.000;
-// 	}
 	//fprintf(stderr, "NO RETURN\n");
 	float weight = 0.0;
 	for(int i = 0; i < NUM_RANGES; i++)
