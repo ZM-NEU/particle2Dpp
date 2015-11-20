@@ -37,12 +37,6 @@ int main(int argc, char **argv) {
 }
 
 //  TODO
-//  MAP FUNCTIONS [BASIC]
-//	Pick a random point on the map given a distribution (resample)
-//	Find the true distance to wall given (x,y,theta)
-//  Move the particles with some uncertainty by the motion
-//  Update particles' belief based off sensor data with some uncertainty
-//
 //  MAP FUNCTIONS [EXTRA]
 //	Inject random particles to track kidnapping scenario
 //

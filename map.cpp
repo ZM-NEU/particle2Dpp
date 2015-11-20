@@ -22,18 +22,18 @@ Map::Map() {
 	_max_laser = 800.0;
 
 	// Sensor Parameters
-	_z_hit = 0.75;
-	_z_short = 0.1;
-	_z_max = 0.01;
-	_z_rand = 0.09;
-	_sigma_hit = 30;
+	_z_hit = 0.65;
+	_z_short = 0.17;
+	_z_max = 0.04;
+	_z_rand = 0.14;
+	_sigma_hit = 5;
 	_lambda_short = 0.001;
 
 	// Odometry Parameters
-	_a1 = 0.015;
+	_a1 = 0.01;
 	_a2 = 0.01;
-	_a3 = 0.11;
-	_a4 = 0.12;
+	_a3 = 0.1;
+	_a4 = 0.1;
 }
 
 Map::~Map() {
@@ -115,8 +115,8 @@ void Map::run(vector<logEntry> logB)
 //          cv::line(temp_map, cv::Point(395, 400), cv::Point(400, 405), cv::Scalar(0, 0, 255));
 //          cv::line(temp_map, cv::Point(400, 405), cv::Point(405, 400), cv::Scalar(0, 0, 255));
         }
-        imshow("Image", temp_map);
-        cv::waitKey(100);
+//         imshow("Image", temp_map);
+//         cv::waitKey(100);
         temp_map = cv::Mat();
 	}
 }
@@ -133,8 +133,10 @@ void Map::run_single_step(logEntry logB)
     motion.theta = logB.robotPose.theta - _prevLog.robotPose.theta;
 	if(fabs(motion.x) < 0.01  && fabs(motion.y) < 0.01 && fabs(motion.theta) < 0.01)
 	{
+// 		fprintf(stderr,"no motion\n");
 		return;
 	}
+// 	fprintf(stderr,"motion\n");
 	update_location(motion);
 
 	// Get sensor data and update prediction
@@ -234,10 +236,27 @@ float Map::_get_particle_weight(lidarData data, pose2D particle_pose)
 	lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
 	lidar.y = particle_pose.y + lidar_offset*sin(particle_pose.theta);
 	float prob = _map.prob[(int)lidar.x][(int)lidar.y];
+	if(lidar.x < _map.min_x || lidar.x > _map.max_x)
+	{
+		fprintf(stderr, "X RETURN!");
+		fprintf(stderr,"(mx %i < lx %.3f < Xx %i) ",_map.min_x,lidar.x,_map.max_x);
+	}
+	if(lidar.y < _map.min_y || lidar.y > _map.max_y)
+	{
+		fprintf(stderr, "Y RETURN!");
+		fprintf(stderr,"(my %i < ly %.3f < Xy %i) ",_map.min_y,lidar.y,_map.max_y);
+	}
+	if(prob < 0 || prob > _threshold)
+	{
+		fprintf(stderr, "P RETURN!");
+		fprintf(stderr,"(mp 0 < p %.3f < Xp %.3f) ",prob,_threshold);
+	}
 	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y < _map.max_y || prob < 0 || prob > _threshold)
 	{
+		fprintf(stderr,"RETURN EARLY\n");
 		return 0.000;
 	}
+
 	float weight = 0;
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
