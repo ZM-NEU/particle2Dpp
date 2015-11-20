@@ -13,6 +13,7 @@ using namespace std;
 typedef struct particle {
     pose2D pose;
     double weight;
+    double map_theta;
 } particle;
 
 typedef struct lidarData {
@@ -68,6 +69,7 @@ private:
 
     // Update the particle's weight
     double _get_particle_weight(lidarData data, int p);
+    double _get_particle_weight2(lidarData data, int p);
 
     // Return the state with the highest probability
     pose2D _get_estimated_state();

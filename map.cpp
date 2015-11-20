@@ -19,16 +19,17 @@ Map::Map() {
 	// Map Parameters
 	_numParticles = 1000; //Random number
 	_particles = new particle[_numParticles];
+    // TODO: figure out why crashes with different _threshold
 	_threshold = 0.1;
 	_max_laser = 800.0;
 
 	// Sensor Parameters
-	_z_hit = 0.65;
-	_z_short = 0.17;
-	_z_max = 0.04;
-	_z_rand = 0.14;
-	_sigma_hit = 5;
-	_lambda_short = 0.001;
+	_z_hit = 0.8;
+	_z_short = 0.095;
+	_z_max = 0.005;
+	_z_rand = 0.1;
+	_sigma_hit = 20;
+	_lambda_short = 0.0005;
 
 	// Odometry Parameters
 	_a1 = 0.01;
@@ -87,6 +88,7 @@ void Map::init_particles(int numParticles)
 			_particles[i].pose.x = _map.min_x + rand()*x;
 			_particles[i].pose.y = _map.min_y + rand()*y;
 			_particles[i].pose.theta = rand()*theta;
+            _particles[i].map_theta = rand()*theta;
 			_particles[i].weight = 1.0/_numParticles;
 			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
 		} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
@@ -134,6 +136,7 @@ void Map::augmented_MCL(logEntry logB)
 {
     static double w_slow;
     static double w_fast;
+    static int count;
     double w_avg = 0;
     pose2D motion;
     motion.x = logB.robotPose.x - _prevLog.robotPose.x;
@@ -159,22 +162,25 @@ void Map::augmented_MCL(logEntry logB)
                 data.ranges[phi] = logB.ranges[phi];
             }
             _particles[m].weight = _get_particle_weight(data, m);
+//             _particles[m].weight = _get_particle_weight2(data, m);
+        }
+        else
+        {
+            return;
         }
         eta_weights += _particles[m].weight;
     }
     
-    //fprintf(stderr,"eta_weights: %f\n",eta_weights);
-    double sum = 0;
+    fprintf(stderr,"eta_weights: %f\n",eta_weights);
     for(int m = 0; m < _numParticles; m++)
     {
         _particles[m].weight /= eta_weights;
-        sum += _particles[m].weight;
         w_avg += _particles[m].weight/_numParticles;
-    }
-    //fprintf(stderr, "sum: %f calcAvg: %f actAvg: %f\n",sum,w_avg,sum/_numParticles);
-    
+    }    
     w_slow += _a_slow*(w_avg - w_slow);
     w_fast += _a_fast*(w_avg - w_fast);
+//     if(count++%100!=99)
+//         return;
     double p_rand_pose = 1.0 - w_fast/w_slow;
     double r_rand_pose = rand()/(double)RAND_MAX;
     //fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
@@ -244,6 +250,30 @@ pose2D Map::_sample_motion_model_odometry(pose2D motion, pose2D particle_pose)
 	return newPose;
 }
 
+double Map::_get_particle_weight2(lidarData data, int p)
+{
+    pose2D particle_pose = _particles[p].pose;
+    double lidar_offset = 2.5;
+    pose2D lidar;
+    lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
+    lidar.y = particle_pose.y - lidar_offset*sin(particle_pose.theta);
+    
+    double prob = _map.prob[(int)lidar.x][(int)lidar.y];
+    if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y || prob < 0 || prob > _threshold)
+    {
+        return 0.000;
+    }
+    //fprintf(stderr, "NO RETURN\n");
+    double weight = 0.0;
+    for(int i = 0; i < NUM_RANGES; i++)
+    {
+        lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
+        double d_expected = _raytrace(lidar, data.ranges[i]);
+        weight += sqrt((d_expected - data.ranges[i])*(d_expected - data.ranges[i]))/_sigma_hit;
+    }
+    return weight;
+}
+
 // Called by update_prediction to see how well lidarData matches for a particle p
 double Map::_get_particle_weight(lidarData data, int p)
 {
@@ -252,11 +282,15 @@ double Map::_get_particle_weight(lidarData data, int p)
 	pose2D lidar;
 	lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
 	lidar.y = particle_pose.y - lidar_offset*sin(particle_pose.theta);
-
+    
+    if(lidar.x < 0 || lidar.x > _map.size_x || lidar.y < 0 || lidar.y > _map.size_y)
+    {
+        return 0.00;
+    }
     double prob = _map.prob[(int)lidar.x][(int)lidar.y];
 	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y || prob < 0 || prob > _threshold)
 	{
-		return 0.000;
+		return 0.00;
 	}
 	//fprintf(stderr, "NO RETURN\n");
 	double weight = 0.0;
