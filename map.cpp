@@ -80,6 +80,7 @@ void Map::init_particles(int numParticles)
 			_particles[i].pose.x = _map.min_x + rand()*x;
 			_particles[i].pose.y = _map.min_y + rand()*y;
 			_particles[i].pose.theta = rand()*theta;
+			_particles[i].weight = 1.0/_numParticles;
 			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
 		} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
 	}
@@ -171,20 +172,31 @@ void Map::update_location(pose2D motion)
 void Map::update_prediction(lidarData data)
 {
 	float eta_weights = 0;
+	//fprintf(stderr,"Pw1 ");
 	for(int i = 0; i < _numParticles; i++)
 	{
-		_particles[i].weight = _get_particle_weight(data, _particles[i].pose);
+		//fprintf(stderr,"%.5f ",_particles[i].weight);
+	}
+	//fprintf(stderr,"\nPw2 ");
+	for(int i = 0; i < _numParticles; i++)
+	{
+		_particles[i].weight = .1;//_get_particle_weight(data, i);
+		//fprintf(stderr,"%.5f ",_particles[i].weight);
 		eta_weights += _particles[i].weight;
 	}
+	//fprintf(stderr, "\nSumW: %f\nPw3 ",eta_weights);
 	for(int i = 0; i < _numParticles; i ++)
 	{
 		_particles[i].weight /= eta_weights;
+		//fprintf(stderr,"%.5f ",_particles[i].weight);
 	}
 	_low_variance_sampler(eta_weights);
+	//fprintf(stderr,"\nPw4 ");
     for(int i = 0; i < _numParticles; i++)
     {
-
+		//fprintf(stderr,"%.5f ",_particles[i].weight);
     }
+    //fprintf(stderr,"\n");
 }
 
 // From book
@@ -202,14 +214,22 @@ void Map::_low_variance_sampler(float eta_weights)
 		{
 // 			c = _particles[++i].weight/eta_weights;
 			c = _particles[++i].weight;
+			if(i >= _numParticles)
+				fprintf(stderr,"i:%i OUTSIDE OF RANGE!!!!! m:%i\n",i,m);
 		}
-		samples[m] = _particles[i];
+		samples[m].pose.x = _particles[i].pose.x;
+		samples[m].pose.y = _particles[i].pose.y;
+		samples[m].pose.theta = _particles[i].pose.theta;
+		samples[m].weight = _particles[i].weight;
 	}
 	for(int i = 0; i < _numParticles; i++)
 	{
-		_particles[i] = samples[i];
+		_particles[i].pose.x = samples[i].pose.x;
+		_particles[i].pose.y = samples[i].pose.y;
+		_particles[i].pose.theta = samples[i].pose.theta;
+		_particles[i].weight = samples[i].weight;
 	}
-	//_particles = samples;
+// 	_particles = samples;
 }
 
 // From Probabilistic Robotics book - samples motion
@@ -229,38 +249,48 @@ pose2D Map::_sample_motion_model_odometry(pose2D motion, pose2D particle_pose)
 }
 
 // Called by update_prediction to see how well lidarData matches for a particle p
-float Map::_get_particle_weight(lidarData data, pose2D particle_pose)
+float Map::_get_particle_weight(lidarData data, int p)
 {
+	pose2D particle_pose = _particles[p].pose;
 	float lidar_offset = 2.5;
 	pose2D lidar;
 	lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
-	lidar.y = particle_pose.y + lidar_offset*sin(particle_pose.theta);
+	lidar.y = particle_pose.y - lidar_offset*sin(particle_pose.theta);
+
+	float tx = lidar.x - particle_pose.x;
+	float ty = lidar.y - particle_pose.y;
+	float tr = sqrt(tx*tx + ty*ty);
+	//fprintf(stderr, "2.5 = %.3f\n",tr);
+
 	float prob = _map.prob[(int)lidar.x][(int)lidar.y];
 	if(lidar.x < _map.min_x || lidar.x > _map.max_x)
 	{
-		fprintf(stderr, "X RETURN!");
-		fprintf(stderr,"(mx %i < lx %.3f < Xx %i) ",_map.min_x,lidar.x,_map.max_x);
+		//fprintf(stderr, "X RETURN!");
+		//fprintf(stderr,"(mx %i < lx %.3f < Xx %i) ",_map.min_x,lidar.x,_map.max_x);
+		return 0.00;
 	}
 	if(lidar.y < _map.min_y || lidar.y > _map.max_y)
 	{
-		fprintf(stderr, "Y RETURN!");
-		fprintf(stderr,"(my %i < ly %.3f < Xy %i) ",_map.min_y,lidar.y,_map.max_y);
+		//fprintf(stderr, "Y RETURN!");
+		//fprintf(stderr,"(my %i < ly %.3f < Xy %i) ",_map.min_y,lidar.y,_map.max_y);
+		return 0.00;
 	}
 	if(prob < 0 || prob > _threshold)
 	{
-		fprintf(stderr, "P RETURN!");
-		fprintf(stderr,"(mp 0 < p %.3f < Xp %.3f) ",prob,_threshold);
+		//fprintf(stderr, "P RETURN!\n");
+		//fprintf(stderr,"(mp 0 < p %.3f < Xp %.3f) ",prob,_threshold);
+		return 0.00;
 	}
-	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y < _map.max_y || prob < 0 || prob > _threshold)
-	{
-		fprintf(stderr,"RETURN EARLY\n");
-		return 0.000;
-	}
-
-	float weight = 0;
+// 	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y < _map.max_y || prob < 0 || prob > _threshold)
+// 	{
+//  		//fprintf(stderr,"RETURN EARLY\n");
+// 		return 0.000;
+// 	}
+	//fprintf(stderr, "NO RETURN\n");
+	float weight = 0.0;
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
-		lidar.theta = i*PI/180 + particle_pose.theta;
+		lidar.theta = ((float)i)*PI/180 + particle_pose.theta;
 		float d_expected = _raytrace(lidar, data.ranges[i]);
 
 		float eta_hit = 1.0/sqrt(2*PI*_sigma_hit*_sigma_hit);
@@ -270,7 +300,7 @@ float Map::_get_particle_weight(lidarData data, pose2D particle_pose)
 		float p_max = (data.ranges[i] > _max_laser - 0.1 ? 1 : 0);
 		float p_rand = 1.0/_max_laser;
 		float p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
-		weight += log(p_total/10);
+		weight += p_total;
 	}
 	return weight;
 }
