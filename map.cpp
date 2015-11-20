@@ -203,13 +203,14 @@ void Map::update_prediction(lidarData data)
 void Map::_low_variance_sampler(float eta_weights)
 {
 	particle* samples = new particle[_numParticles];
-	float r = rand()/((float)RAND_MAX*_numParticles);
+	float r = (rand()/(float)RAND_MAX)/_numParticles;
 // 	float c = _particles[0].weight/eta_weights;
 	float c = _particles[0].weight;
+	fprintf(stderr,"r:%f c:%f\n",r,c);
 	int i = 0;
 	for(int m = 0; m < _numParticles; m++)
 	{
-		float u = r + m*_numParticles;
+		float u = r + (float)m*_numParticles;
 		while(u > c)
 		{
 // 			c = _particles[++i].weight/eta_weights;
