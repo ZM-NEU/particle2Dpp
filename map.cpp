@@ -152,7 +152,7 @@ void Map::augmented_MCL(logEntry logB)
     for(int m = 0; m < _numParticles; m++)
     {
         // Sample Motion Model
-        _particles[m].pose = _sample_motion_model_odometry(motion, _particles[m].pose);
+        _particles[m].pose = _sample_motion_model_odometry(motion, m);
         
         // Measurement Model
         if(logB.logType == LIDAR)
@@ -201,6 +201,7 @@ void Map::augmented_MCL(logEntry logB)
                 samples[m].pose.x = _map.min_x + rand()*x;
                 samples[m].pose.y = _map.min_y + rand()*y;
                 samples[m].pose.theta = rand()*theta;
+                samples[m].map_theta = rand()*theta;
                 // TODO: Figure out if a weight is needed here??!??!
                 samples[m].weight = 1.0/_numParticles;
                 prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
@@ -223,6 +224,7 @@ void Map::augmented_MCL(logEntry logB)
         _particles[i].pose.x = samples[i].pose.x;
         _particles[i].pose.y = samples[i].pose.y;
         _particles[i].pose.theta = samples[i].pose.theta;
+        _particles[i].map_theta = samples[i].map_theta;
         _particles[i].weight = samples[i].weight;
     }
     
@@ -234,19 +236,20 @@ void Map::augmented_MCL(logEntry logB)
 }
 
 // From Probabilistic Robotics book - samples motion
-pose2D Map::_sample_motion_model_odometry(pose2D motion, pose2D particle_pose)
+pose2D Map::_sample_motion_model_odometry(pose2D motion, int _p)
 {
-    double dr1 = atan2(motion.y, motion.x) - particle_pose.theta;
+    particle p = _particles[_p];
+    double dr1 = atan2(motion.y, motion.x) - p.pose.theta;
     double dtr = sqrt(motion.x*motion.x + motion.y*motion.y);
     double dr2 = motion.theta - dr1;
     double dhr1 = dr1 - _sample_with_variance(_a1*dr1 + _a2*dtr);
     double dhtr = dtr - _sample_with_variance(_a3*dtr + _a4*(dr1 + dr2));
     double dhr2 = dr2 - _sample_with_variance(_a1*dr2 + _a2*dtr);
 	pose2D newPose;
-	newPose.x = particle_pose.x + dhtr*cos(particle_pose.theta + dhr1);
-	newPose.y = particle_pose.y + dhtr*sin(particle_pose.theta + dhr1);
-// 	newPose.theta = particle_pose.theta + dhr1 + dhr2;
-    newPose.theta = wrap(particle_pose.theta + dhr1 + dhr2, 0, 2*PI);
+	newPose.x = p.pose.x + dhtr*cos(p.pose.theta + dhr1);
+	newPose.y = p.pose.y + dhtr*sin(p.pose.theta + dhr1);
+// 	newPose.theta = p.pose.theta + dhr1 + dhr2;
+    newPose.theta = wrap(p.pose.theta + dhr1 + dhr2, 0, 2*PI);
 	return newPose;
 }
 

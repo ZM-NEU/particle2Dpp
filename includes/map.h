@@ -65,7 +65,7 @@ private:
     double _a_fast;
 
 	// From Probabilistic Robotics book
-	pose2D _sample_motion_model_odometry(pose2D motion, pose2D particle_pose);
+	pose2D _sample_motion_model_odometry(pose2D motion, int _p);
 
     // Update the particle's weight
     double _get_particle_weight(lidarData data, int p);
