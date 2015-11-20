@@ -22,14 +22,14 @@ int main(int argc, char **argv) {
     printf("Number of entries in Log1: %lu\n",logBook1.size());
     printf("Number of entries in Log2: %lu\n",logBook2.size());
 
-    read_beesoft_map(map_name.c_str(), &map);    
-    
+    read_beesoft_map(map_name.c_str(), &map);
+
     Map map1 = Map();
     Map map2 = Map();
     map1.init_map(map);
     map2.init_map(map);
 
-	int nParticles = 300;
+	int nParticles = 3000;
 	map1.init_particles(nParticles);
 	map1.run(logBook1);
 
