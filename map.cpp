@@ -272,8 +272,14 @@ double Map::_get_particle_weight(lidarData data, int p)
         double p_max = (data.ranges[i] > _max_laser - 0.1 ? 1 : 0);
         double p_rand = 1.0/_max_laser;
         double p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
-		weight += log(p_total);
+        //fprintf(stderr,"p%i: %f ",i,p_total);
+        if(p_total <= 0)
+            fprintf(stderr,"\nERROR (p,r):(%i,%i)!",p,i);
+		weight += p_total;
 	}
+	//fprintf(stderr,"\n");
+	if(weight < 0 || fabs(weight) > 1000)
+        fprintf(stderr,"w: %f\n",weight);
 	return weight;
 }
 
