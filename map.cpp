@@ -17,7 +17,7 @@ using namespace std;
 
 Map::Map() {
 	// Map Parameters
-	_numParticles = 1000; //Random number
+	_numParticles = 5000; //Random number
 	_particles = new particle[_numParticles];
     // TODO: figure out why crashes with different _threshold
 	_threshold = 0.1;
@@ -181,6 +181,12 @@ void Map::augmented_MCL(logEntry logB)
     w_fast += _a_fast*(w_avg - w_fast);
 //     if(count++%100!=99)
 //         return;
+    
+    // TODO: Fix resampling!
+    // A. Use this method
+        // Is this method implemented correctly?
+    // B. Resample based off variance
+    
     double p_rand_pose = 1.0 - w_fast/w_slow;
     double r_rand_pose = rand()/(double)RAND_MAX;
     //fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
