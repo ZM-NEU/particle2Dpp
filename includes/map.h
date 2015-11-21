@@ -42,6 +42,7 @@ public:
 
     // Update Phase
     void update_prediction(lidarData data);
+    void draw_particles();
 
 private:
     map_type _map;

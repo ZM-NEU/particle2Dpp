@@ -111,24 +111,29 @@ void Map::run(vector<logEntry> logB)
 	{
         //fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
         augmented_MCL(logB[i]);
-        cv::Mat temp_map;
-        cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
-        int p = 1;
-        for(p; p < _numParticles; p++)
-        {
-            // Plot
-            int x = (int)_particles[p].pose.x;
-            int y = (int)_particles[p].pose.y;
-            double theta = _particles[p].pose.theta;
-			cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
-//             int xp = x + (int)5*cos(_particles[p].pose.theta);
-//             int yp = y - (int)5*sin(_particles[p].pose.theta);
-//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
-        }
-        cv::imshow("Image", temp_map);
-        cv::waitKey(10);
-        temp_map = cv::Mat();
+        draw_particles();
 	}
+}
+
+void Map::draw_particles()
+{
+    cv::Mat temp_map;
+    cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
+    int p = 1;
+    for(p; p < _numParticles; p++)
+    {
+        // Plot
+        int x = (int)_particles[p].pose.x;
+        int y = (int)_particles[p].pose.y;
+        double theta = _particles[p].pose.theta;
+        cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
+        //             int xp = x + (int)5*cos(_particles[p].pose.theta);
+        //             int yp = y - (int)5*sin(_particles[p].pose.theta);
+        //             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
+    }
+    cv::imshow("Image", temp_map);
+    cv::waitKey(10);
+    temp_map = cv::Mat();
 }
 
 // Updates the map for a single logEntry
@@ -330,7 +335,8 @@ double Map::_get_particle_weight(lidarData data, int p)
 double Map::_raytrace(pose2D vec, double range)
 {
 	int i = 0;
-	int x,y;
+	int x;
+    int y;
     double prob;
 	do
 	{
