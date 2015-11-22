@@ -109,7 +109,7 @@ void Map::run(vector<logEntry> logB)
 	}
 	for(int i = start_index; i < logB.size(); i++)
 	{
-        //fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
+        fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
         augmented_MCL(logB[i]);
         draw_particles();
 	}
@@ -158,7 +158,6 @@ void Map::augmented_MCL(logEntry logB)
     {
         // Sample Motion Model
         _particles[m].pose = _sample_motion_model_odometry(motion, m);
-        
         // Measurement Model
         if(logB.logType == LIDAR)
         {
@@ -223,7 +222,10 @@ void Map::augmented_MCL(logEntry logB)
             while(u > c)
             {
                 if(i >= _numParticles)
+                {
+                    i = _numParticles - 1;
                     continue;
+                }
                 i++;
                 c += _particles[i].weight;
             }
@@ -264,30 +266,6 @@ pose2D Map::_sample_motion_model_odometry(pose2D motion, int _p)
 	return newPose;
 }
 
-double Map::_get_particle_weight2(lidarData data, int p)
-{
-    pose2D particle_pose = _particles[p].pose;
-    double lidar_offset = 2.5;
-    pose2D lidar;
-    lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
-    lidar.y = particle_pose.y - lidar_offset*sin(particle_pose.theta);
-    
-    double prob = _map.prob[(int)lidar.x][(int)lidar.y];
-    if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y || prob < 0 || prob > _threshold)
-    {
-        return 0.000;
-    }
-    //fprintf(stderr, "NO RETURN\n");
-    double weight = 0.0;
-    for(int i = 0; i < NUM_RANGES; i++)
-    {
-        lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
-        double d_expected = _raytrace(lidar, data.ranges[i]);
-        weight += sqrt((d_expected - data.ranges[i])*(d_expected - data.ranges[i]))/_sigma_hit;
-    }
-    return weight;
-}
-
 // Called by update_prediction to see how well lidarData matches for a particle p
 double Map::_get_particle_weight(lidarData data, int p)
 {
@@ -295,8 +273,7 @@ double Map::_get_particle_weight(lidarData data, int p)
     double lidar_offset = 2.5;
 	pose2D lidar;
 	lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
-	lidar.y = particle_pose.y - lidar_offset*sin(particle_pose.theta);
-    
+	lidar.y = particle_pose.y + lidar_offset*sin(particle_pose.theta);
     if(lidar.x < 0 || lidar.x > _map.size_x || lidar.y < 0 || lidar.y > _map.size_y)
     {
         return 0.00;
@@ -311,8 +288,8 @@ double Map::_get_particle_weight(lidarData data, int p)
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
         lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
-        double d_expected = _raytrace(lidar, data.ranges[i]);
-
+        double d_expected = _raytrace2(lidar, data.ranges[i]);
+        
         double eta_hit = 1.0/sqrt(2*PI*_sigma_hit*_sigma_hit);
         double p_hit = eta_hit*exp((-0.5*(data.ranges[i] - d_expected)*(data.ranges[i] - d_expected))/(_sigma_hit*_sigma_hit));
         double eta_short = 1.0/(1 - exp(-1*_lambda_short*d_expected));
@@ -350,6 +327,27 @@ double Map::_raytrace(pose2D vec, double range)
     double approx_dy = vec.y - ((double)i)*cos(vec.theta);
     double approx_d = sqrt(approx_dx*approx_dx + approx_dy*approx_dy) + (1-prob);
 	return (approx_d > _max_laser) ? _max_laser : approx_d;
+}
+
+// Ray trace to find the expected distance
+double Map::_raytrace2(pose2D vec, double range)
+{
+    double lower = 0;
+    double upper = _max_laser;
+    
+    while(upper - lower > 1.0)
+    {
+        double mid = (upper + lower)/2;
+        int x = (int)(mid*cos(vec.theta - PI/2) + vec.x);
+        int y = (int)(mid*sin(vec.theta - PI/2) + vec.y);
+        if(x >= _map.size_x || x < 0 || y >= _map.size_y || y < 0)
+            upper = mid;
+        else if(_map.prob[x][y] <= _threshold && _map.prob[x][y] >= 0) // If open move lower bound
+            lower = mid;
+        else
+            upper = mid;
+    }
+    return (upper + lower)/2;
 }
 
 // Sample 0 mean gaussian with variance sigma;

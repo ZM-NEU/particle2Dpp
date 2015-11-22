@@ -83,6 +83,7 @@ private:
 
 	// Ray trace to find the expected distance
     double _raytrace(pose2D vec, double range);
+    double _raytrace2(pose2D lidar, double ranges);
 };
 
 double wrap(double num, double min, double max);
