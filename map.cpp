@@ -36,16 +36,17 @@ Map::Map() {
 	_a2 = 0.01;
 	_a3 = 0.1;
 	_a4 = 0.1;
-    
+
     // Augmented_MCL Parameters
     _a_slow = 0.05;
     _a_fast = 0.2;
-    
+
     //srand();
 }
 
 Map::~Map() {
 	delete[] _particles;
+	_mapImage = cv::Mat();
 }
 
 // Load map_type in as a class to do things
@@ -111,7 +112,17 @@ void Map::run(vector<logEntry> logB)
 	{
         fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
         augmented_MCL(logB[i]);
-        draw_particles();
+//         draw_particles();
+		lidarData data;
+		data.ranges = new double[NUM_RANGES];
+		if(logB[i].logType == LIDAR)
+		{
+			for(int j = 0; j < NUM_RANGES; j++)
+			{
+				data.ranges[j] = logB[i].ranges[j];
+			}
+			draw_best_lidar(data);
+		}
 	}
 }
 
@@ -119,8 +130,7 @@ void Map::draw_particles()
 {
     cv::Mat temp_map;
     cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
-    int p = 1;
-    for(p; p < _numParticles; p++)
+    for(int p = 0; p < _numParticles; p++)
     {
         // Plot
         int x = (int)_particles[p].pose.x;
@@ -134,6 +144,48 @@ void Map::draw_particles()
     cv::imshow("Image", temp_map);
     cv::waitKey(10);
     temp_map = cv::Mat();
+}
+
+void Map::draw_best_lidar(lidarData data)
+{
+	cv::Mat temp_map;
+	cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
+	int best_idx = 0;
+	for(int p = 0; p < _numParticles; p++)
+	{
+		best_idx = (_particles[best_idx].weight > _particles[p].weight) ? best_idx : p;
+	}
+	// Plot
+	int x = (int)_particles[best_idx].pose.x;
+	int y = (int)_particles[best_idx].pose.y;
+	double theta = _particles[best_idx].pose.theta;
+
+	for(int i = 0; i < NUM_RANGES; i++)
+	{
+		int x2 = (int)(data.ranges[i]*cos(i*PI/180 + theta - PI/2) + x);
+		int y2 = (int)(data.ranges[i]*sin(i*PI/180 + theta - PI/2) + y);
+		if (x2 < _map.min_x || x2 > _map.max_x || y2 < _map.min_y || y2 > _map.max_y)
+			continue;
+		cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(255, 0, 0));
+	}
+	for(int p = 0; p < _numParticles; p++)
+	{
+		// Plot
+		int x = (int)_particles[p].pose.x;
+		int y = (int)_particles[p].pose.y;
+		double theta = _particles[p].pose.theta;
+		cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
+		//             int xp = x + (int)5*cos(_particles[p].pose.theta);
+		//             int yp = y - (int)5*sin(_particles[p].pose.theta);
+		//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
+	}
+	//cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
+	//             int xp = x + (int)5*cos(_particles[p].pose.theta);
+	//             int yp = y - (int)5*sin(_particles[p].pose.theta);
+	//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
+	cv::imshow("Image", temp_map);
+	cv::waitKey(100);
+	temp_map = cv::Mat();
 }
 
 // Updates the map for a single logEntry
@@ -154,10 +206,12 @@ void Map::augmented_MCL(logEntry logB)
     lidarData data;
     double eta_weights = 0;
     data.ranges = new double[NUM_RANGES];
+	fprintf(stderr,"\n");
     for(int m = 0; m < _numParticles; m++)
     {
         // Sample Motion Model
         _particles[m].pose = _sample_motion_model_odometry(motion, m);
+		//fprintf(stderr,"p%i(x,y,t,w)=(%f,%f,%f,%f) ",m,_particles[m].pose.x,_particles[m].pose.y,_particles[m].pose.theta,_particles[m].weight);
         // Measurement Model
         if(logB.logType == LIDAR)
         {
@@ -174,23 +228,23 @@ void Map::augmented_MCL(logEntry logB)
         }
         eta_weights += _particles[m].weight;
     }
-    
-    fprintf(stderr,"eta_weights: %f\n",eta_weights);
+
+    fprintf(stderr,"\neta_weights: %f\n",eta_weights);
     for(int m = 0; m < _numParticles; m++)
     {
         _particles[m].weight /= eta_weights;
         w_avg += _particles[m].weight/_numParticles;
-    }    
+    }
     w_slow += _a_slow*(w_avg - w_slow);
     w_fast += _a_fast*(w_avg - w_fast);
 //     if(count++%100!=99)
 //         return;
-    
+
     // TODO: Fix resampling!
     // A. Use this method
         // Is this method implemented correctly?
     // B. Resample based off variance
-    
+
     double p_rand_pose = 1.0 - w_fast/w_slow;
     double r_rand_pose = rand()/(double)RAND_MAX;
     //fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
@@ -240,7 +294,7 @@ void Map::augmented_MCL(logEntry logB)
         _particles[i].map_theta = samples[i].map_theta;
         _particles[i].weight = samples[i].weight;
     }
-    
+
     // Save last log entry robot pose for next update
     _prevLog.logType = logB.logType;
     _prevLog.robotPose.x = logB.robotPose.x;
@@ -274,12 +328,12 @@ double Map::_get_particle_weight(lidarData data, int p)
 	pose2D lidar;
 	lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
 	lidar.y = particle_pose.y + lidar_offset*sin(particle_pose.theta);
-    if(lidar.x < 0 || lidar.x > _map.size_x || lidar.y < 0 || lidar.y > _map.size_y)
-    {
-        return 0.00;
-    }
+	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y)
+	{
+		return 0.00;
+	}
     double prob = _map.prob[(int)lidar.x][(int)lidar.y];
-	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y || prob < 0 || prob > _threshold)
+	if(prob < 0 || prob > _threshold)
 	{
 		return 0.00;
 	}
@@ -289,7 +343,7 @@ double Map::_get_particle_weight(lidarData data, int p)
 	{
         lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
         double d_expected = _raytrace2(lidar, data.ranges[i]);
-        
+
         double eta_hit = 1.0/sqrt(2*PI*_sigma_hit*_sigma_hit);
         double p_hit = eta_hit*exp((-0.5*(data.ranges[i] - d_expected)*(data.ranges[i] - d_expected))/(_sigma_hit*_sigma_hit));
         double eta_short = 1.0/(1 - exp(-1*_lambda_short*d_expected));
@@ -334,13 +388,13 @@ double Map::_raytrace2(pose2D vec, double range)
 {
     double lower = 0;
     double upper = _max_laser;
-    
+
     while(upper - lower > 1.0)
     {
         double mid = (upper + lower)/2;
         int x = (int)(mid*cos(vec.theta - PI/2) + vec.x);
         int y = (int)(mid*sin(vec.theta - PI/2) + vec.y);
-        if(x >= _map.size_x || x < 0 || y >= _map.size_y || y < 0)
+		if(x < _map.min_x || x > _map.max_x || y < _map.min_y || y > _map.max_y)
             upper = mid;
         else if(_map.prob[x][y] <= _threshold && _map.prob[x][y] >= 0) // If open move lower bound
             lower = mid;

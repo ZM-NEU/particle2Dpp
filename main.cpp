@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     map1.init_map(map);
     map2.init_map(map);
 
-	int nParticles = 3000;
+	int nParticles = 2000;
 	map1.init_particles(nParticles);
 	map1.run(logBook1);
 
