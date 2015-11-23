@@ -206,6 +206,8 @@ void Map::augmented_MCL(logEntry logB)
     lidarData data;
     double eta_weights = 0;
     data.ranges = new double[NUM_RANGES];
+	int w_max_in = 0;
+	int w_min_in = 0;
 	fprintf(stderr,"\n");
     for(int m = 0; m < _numParticles; m++)
     {
@@ -221,6 +223,8 @@ void Map::augmented_MCL(logEntry logB)
             }
             _particles[m].weight = _get_particle_weight(data, m);
 //             _particles[m].weight = _get_particle_weight2(data, m);
+			w_max_in = (_particles[w_max_in].weight > _particles[m].weight) ? w_max_in : _particles[m].weight;
+			w_min_in = (_particles[w_min_in].weight < _particles[m].weight || _particles[m].weight <= 0.00) ? w_min_in : _particles[m].weight;
         }
         else
         {
@@ -244,7 +248,8 @@ void Map::augmented_MCL(logEntry logB)
     // A. Use this method
         // Is this method implemented correctly?
     // B. Resample based off variance
-
+	if(_particles[w_max_in].weight/_particles[w_max_in].weight < 10)
+		return;
     double p_rand_pose = 1.0 - w_fast/w_slow;
     double r_rand_pose = rand()/(double)RAND_MAX;
     //fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
