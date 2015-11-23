@@ -251,6 +251,8 @@ void Map::augmented_MCL(logEntry logB)
     // A. Use this method
         // Is this method implemented correctly?
     // B. Resample based off variance
+    pose2D var = _get_particle_variance();
+    fprintf(stderr,"Variance (%f %f %f)\n",var.x,var.y,var.theta);
 	if(_particles[w_max_in].weight/_particles[w_max_in].weight > 10)
 	{
 		_resample(1.0 - w_fast/w_slow);
@@ -290,9 +292,9 @@ pose2D Map::_get_particle_variance()
         sumsq.y += (_particles[p].pose.y)*(_particles[p].pose.y);
         sumsq.theta += (_particles[p].pose.theta)*(_particles[p].pose.theta);
     }
-    variance.x = (sumsq.x - (sum.x*sum.x)/_numParticles)/_numParticles;
-    variance.y = (sumsq.y - (sum.y*sum.y)/_numParticles)/_numParticles;
-    variance.theta = (sumsq.theta - (sum.theta*sum.theta)/_numParticles)/_numParticles;
+    variance.x = sqrt((sumsq.x - (sum.x*sum.x)/_numParticles)/_numParticles);
+    variance.y = sqrt((sumsq.y - (sum.y*sum.y)/_numParticles)/_numParticles);
+    variance.theta = sqrt((sumsq.theta - (sum.theta*sum.theta)/_numParticles)/_numParticles);
     return variance;
 }
 
