@@ -1,5 +1,4 @@
 #include "includes/map.h"
-#include </home/ben/Documents/aerialSLAM/OpenCV/opencv-3.0.0/modules/features2d/src/opencl/fast.cl>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
