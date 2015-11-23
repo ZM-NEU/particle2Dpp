@@ -15,7 +15,8 @@
 
 using namespace std;
 
-Map::Map() {
+Map::Map()
+{
 	// Map Parameters
 	_numParticles = 5000; //Random number
 	_particles = new particle[_numParticles];
@@ -42,15 +43,19 @@ Map::Map() {
     _a_fast = 0.2;
 
     //srand();
+	default_random_engine _generator;
+	normal_distribution<double> _distribution(0,1);
 }
 
-Map::~Map() {
+Map::~Map()
+{
 	delete[] _particles;
 	_mapImage = cv::Mat();
 }
 
 // Load map_type in as a class to do things
-void Map::init_map(map_type map) {
+void Map::init_map(map_type map)
+{
 	_map = map;
 	_prevLog.logType = INVALID;
 
@@ -285,7 +290,8 @@ void Map::resample(double p_rand_pose)
 				prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
 			} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
 		}
-		else{
+		else
+		{
 			double u = r + ((double)m)/((double)_numParticles);
 			while(u > c)
 			{
@@ -317,9 +323,9 @@ pose2D Map::_sample_motion_model_odometry(pose2D motion, int _p)
     double dr1 = atan2(motion.y, motion.x) - p.pose.theta;
     double dtr = sqrt(motion.x*motion.x + motion.y*motion.y);
     double dr2 = motion.theta - dr1;
-    double dhr1 = dr1 - _sample_with_variance(_a1*dr1 + _a2*dtr);
-    double dhtr = dtr - _sample_with_variance(_a3*dtr + _a4*(dr1 + dr2));
-    double dhr2 = dr2 - _sample_with_variance(_a1*dr2 + _a2*dtr);
+	double dhr1 = dr1 - _distribution(_generator)*(_a1*dr1 + _a2*dtr);
+	double dhtr = dtr - _distribution(_generator)*(_a3*dtr + _a4*(dr1 + dr2));
+	double dhr2 = dr2 - _distribution(_generator)*(_a1*dr2 + _a2*dtr);
 	pose2D newPose;
 	newPose.x = p.pose.x + dhtr*cos(p.pose.theta + dhr1);
 	newPose.y = p.pose.y + dhtr*sin(p.pose.theta + dhr1);
@@ -410,14 +416,6 @@ double Map::_raytrace2(pose2D vec, double range)
             upper = mid;
     }
     return (upper + lower)/2;
-}
-
-// Sample 0 mean gaussian with variance sigma;
-double Map::_sample_with_variance(double sigma)
-{
-    default_random_engine generator;
-    normal_distribution<double> distribution(0,sigma);
-    return distribution(generator);
 }
 
 // Used to wrap numbers i.e. wrap(angle, 0, 2PI)

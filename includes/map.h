@@ -66,6 +66,8 @@ private:
     double _a4;
     double _a_slow;
     double _a_fast;
+	default_random_engine _generator;
+	normal_distribution<double> _distribution;
 
 	// From Probabilistic Robotics book
 	pose2D _sample_motion_model_odometry(pose2D motion, int _p);

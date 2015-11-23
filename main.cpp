@@ -7,7 +7,8 @@
 
 using namespace std;
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     map_type map;
     string map_name = "../data/map/wean.dat";
     string log1_name = "../data/log/robotdata1.log";
