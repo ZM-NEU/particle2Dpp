@@ -1,4 +1,5 @@
 #include "includes/map.h"
+#include </home/ben/Documents/aerialSLAM/OpenCV/opencv-3.0.0/modules/features2d/src/opencl/fast.cl>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -144,15 +145,30 @@ void Map::draw_best_lidar(lidarData data)
 {
 	cv::Mat temp_map;
 	cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
-	int best_idx = 0;
+    particle avg_part;
+    avg_part.pose.x = 0;
+    avg_part.pose.y = 0;
+    avg_part.pose.theta = 0;
+    int best_idx = 0;
+    double eta = 0.0;
 	for(int p = 0; p < _numParticles; p++)
 	{
+        avg_part.pose.x += _particles[p].weight*_particles[p].pose.x;
+        avg_part.pose.y += _particles[p].weight*_particles[p].pose.y;
+        avg_part.pose.theta += _particles[p].weight*_particles[p].pose.theta;
+        eta += _particles[p].weight;
 		best_idx = (_particles[best_idx].weight > _particles[p].weight) ? best_idx : p;
 	}
-	// Plot
-	int x = (int)_particles[best_idx].pose.x;
-	int y = (int)_particles[best_idx].pose.y;
-	double theta = _particles[best_idx].pose.theta;
+	avg_part.weight = _particles[best_idx].weight;
+// 	// Plot highest weighted particle
+// 	int x = (int)_particles[best_idx].pose.x;
+// 	int y = (int)_particles[best_idx].pose.y;
+// 	double theta = _particles[best_idx].pose.theta;
+    // Plot weighted average particle
+    int x = (int)(avg_part.pose.x/eta);
+    int y = (int)(avg_part.pose.y/eta);
+    double theta = avg_part.pose.theta/eta;
+    fprintf(stderr,"Best (%i %i %f)\n",x,y,theta);
 	// TODO Plot the lidar values at the weighted average location
 	// TODO Plot the expected values instead of the actual?
 	for(int i = 0; i < NUM_RANGES; i++)
@@ -171,14 +187,7 @@ void Map::draw_best_lidar(lidarData data)
 		double theta = _particles[p].pose.theta;
 		int w = (int)(_particles[p].weight/_particles[best_idx].weight*255);
 		cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(255 - w, 0, w));
-		//             int xp = x + (int)5*cos(_particles[p].pose.theta);
-		//             int yp = y - (int)5*sin(_particles[p].pose.theta);
-		//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
 	}
-	//cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
-	//             int xp = x + (int)5*cos(_particles[p].pose.theta);
-	//             int yp = y - (int)5*sin(_particles[p].pose.theta);
-	//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
 	cv::imshow("Image", temp_map);
 	cv::waitKey(10);
 	temp_map = cv::Mat();
@@ -204,7 +213,7 @@ void Map::augmented_MCL(logEntry logB)
     data.ranges = new double[NUM_RANGES];
 	int w_max_in = 0;
 	int w_min_in = 0;
-	fprintf(stderr,"\n");
+	//fprintf(stderr,"\n");
     for(int m = 0; m < _numParticles; m++)
     {
         // Sample Motion Model
@@ -229,7 +238,7 @@ void Map::augmented_MCL(logEntry logB)
         eta_weights += _particles[m].weight;
     }
 
-    fprintf(stderr,"\neta_weights: %f\n",eta_weights);
+    //fprintf(stderr,"\neta_weights: %f\n",eta_weights);
     for(int m = 0; m < _numParticles; m++)
     {
         _particles[m].weight /= eta_weights;
@@ -244,8 +253,12 @@ void Map::augmented_MCL(logEntry logB)
     // B. Resample based off variance
 	if(_particles[w_max_in].weight/_particles[w_max_in].weight > 10)
 	{
-		resample(1.0 - w_fast/w_slow);
+		_resample(1.0 - w_fast/w_slow);
 	}
+	else if(_particles[w_max_in].weight/_particles[w_max_in].weight > 2)
+    {
+        _low_variance_sampler();
+    }
 
     // Save last log entry robot pose for next update
     _prevLog.logType = logB.logType;
@@ -254,7 +267,66 @@ void Map::augmented_MCL(logEntry logB)
     _prevLog.robotPose.theta = logB.robotPose.theta;
 }
 
-void Map::resample(double p_rand_pose)
+pose2D Map::_get_particle_variance()
+{
+    pose2D variance;
+    variance.x = 0;
+    variance.y = 0;
+    variance.theta = 0;
+    pose2D sum;
+    sum.x = 0;
+    sum.y = 0;
+    sum.theta = 0;
+    pose2D sumsq;
+    sumsq.x = 0;
+    sumsq.y = 0;
+    sumsq.theta = 0;
+    for(int p = 0; p < _numParticles; p++)
+    {
+        sum.x += _particles[p].pose.x;
+        sum.y += _particles[p].pose.y;
+        sum.theta += _particles[p].pose.theta;
+        sumsq.x += (_particles[p].pose.x)*(_particles[p].pose.x);
+        sumsq.y += (_particles[p].pose.y)*(_particles[p].pose.y);
+        sumsq.theta += (_particles[p].pose.theta)*(_particles[p].pose.theta);
+    }
+    variance.x = (sumsq.x - (sum.x*sum.x)/_numParticles)/_numParticles;
+    variance.y = (sumsq.y - (sum.y*sum.y)/_numParticles)/_numParticles;
+    variance.theta = (sumsq.theta - (sum.theta*sum.theta)/_numParticles)/_numParticles;
+    return variance;
+}
+
+void Map::_low_variance_sampler()
+{
+    particle* samples = new particle[_numParticles];
+    double r = (rand()/(double)RAND_MAX)/_numParticles;
+    double c = _particles[0].weight;
+    int i = 0;
+    for(int p = 0; p < _numParticles; p++)
+    {
+        double u = r + ((double)p)/((double)_numParticles);
+        while(u > c)
+        {
+            if(i >= _numParticles)
+            {
+                i = _numParticles - 1;
+                continue;
+            }
+            i++;
+            c += _particles[i].weight;
+        }
+        samples[p] = _particles[i];
+    }
+    for(int i = 0; i < _numParticles; i++)
+    {
+        _particles[i].pose.x = samples[i].pose.x;
+        _particles[i].pose.y = samples[i].pose.y;
+        _particles[i].pose.theta = samples[i].pose.theta;
+        _particles[i].weight = samples[i].weight;
+    }
+}
+
+void Map::_resample(double p_rand_pose)
 {
 	double r_rand_pose = rand()/(double)RAND_MAX;
 	//fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
