@@ -256,7 +256,7 @@ void Map::augmented_MCL(logEntry logB)
 	{
 		_resample(1.0 - w_fast/w_slow);
 	}
-	else if(_particles[w_max_in].weight/_particles[w_max_in].weight > 2)
+	else //if(_particles[w_max_in].weight/_particles[w_max_in].weight > 2)
     {
         _low_variance_sampler();
     }
