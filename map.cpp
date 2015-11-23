@@ -161,7 +161,7 @@ void Map::draw_best_lidar(lidarData data)
 		int y2 = (int)(data.ranges[i]*sin(i*PI/180 + theta - PI/2) + y);
 		if (x2 < _map.min_x || x2 > _map.max_x || y2 < _map.min_y || y2 > _map.max_y)
 			continue;
-		cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(255, 0, 0));
+		cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(0, 255, 0));
 	}
 	for(int p = 0; p < _numParticles; p++)
 	{
@@ -169,7 +169,8 @@ void Map::draw_best_lidar(lidarData data)
 		int x = (int)_particles[p].pose.x;
 		int y = (int)_particles[p].pose.y;
 		double theta = _particles[p].pose.theta;
-		cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(0, 0, 255));
+		int w = (int)(_particles[p].weight/_particles[best_idx].weight*255);
+		cv::circle(temp_map, cv::Point(y, x), 1, cv::Scalar(255 - w, 0, w));
 		//             int xp = x + (int)5*cos(_particles[p].pose.theta);
 		//             int yp = y - (int)5*sin(_particles[p].pose.theta);
 		//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
