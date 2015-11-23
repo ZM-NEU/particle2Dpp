@@ -13,7 +13,6 @@ using namespace std;
 typedef struct particle {
     pose2D pose;
     double weight;
-    double map_theta;
 } particle;
 
 typedef struct lidarData {
@@ -79,8 +78,7 @@ private:
     // Return the state with the highest probability
     pose2D _get_estimated_state();
 
-    // Sample 0 mean gaussian with variance sigma;
-    double _sample_with_variance(double sigma);
+	void _inject_at(int p);
 
 	// From book
     void _low_variance_sampler(double eta_weights);

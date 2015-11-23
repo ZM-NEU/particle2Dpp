@@ -82,22 +82,11 @@ void Map::init_particles(int numParticles)
 	delete[] _particles;
 	_particles = new particle[_numParticles];
 
-    double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
-    double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
-    double theta = 2*PI/(double)RAND_MAX;
-    double prob;
 	// Randomly get the particles needed
 	// Don't want -1 cells
-	for(int i = 0; i < _numParticles; i++)
+	for(int p = 0; p < _numParticles; p++)
 	{
-		do {
-			_particles[i].pose.x = _map.min_x + rand()*x;
-			_particles[i].pose.y = _map.min_y + rand()*y;
-			_particles[i].pose.theta = rand()*theta;
-            _particles[i].map_theta = rand()*theta;
-			_particles[i].weight = 1.0/_numParticles;
-			prob = _map.prob[(int)_particles[i].pose.x][(int)_particles[i].pose.y];
-		} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
+		_inject_at(p);
 	}
 }
 
@@ -284,7 +273,6 @@ void Map::resample(double p_rand_pose)
 				samples[m].pose.x = _map.min_x + rand()*x;
 				samples[m].pose.y = _map.min_y + rand()*y;
 				samples[m].pose.theta = rand()*theta;
-				samples[m].map_theta = rand()*theta;
 				// TODO: Figure out if a weight is needed here??!??!
 				samples[m].weight = 1.0/_numParticles;
 				prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
@@ -311,7 +299,6 @@ void Map::resample(double p_rand_pose)
 		_particles[i].pose.x = samples[i].pose.x;
 		_particles[i].pose.y = samples[i].pose.y;
 		_particles[i].pose.theta = samples[i].pose.theta;
-		_particles[i].map_theta = samples[i].map_theta;
 		_particles[i].weight = samples[i].weight;
 	}
 }
@@ -344,11 +331,13 @@ double Map::_get_particle_weight(lidarData data, int p)
 	lidar.y = particle_pose.y + lidar_offset*sin(particle_pose.theta);
 	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y)
 	{
+		_inject_at(p);
 		return 0.00;
 	}
     double prob = _map.prob[(int)lidar.x][(int)lidar.y];
 	if(prob < 0 || prob > _threshold)
 	{
+		_inject_at(p);
 		return 0.00;
 	}
 	//fprintf(stderr, "NO RETURN\n");
@@ -374,6 +363,23 @@ double Map::_get_particle_weight(lidarData data, int p)
 	if(weight < 0 || fabs(weight) > 1000)
         fprintf(stderr,"w: %f\n",weight);
 	return weight;
+}
+
+void Map::_inject_at(int p)
+{
+	double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
+	double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
+	double theta = 2*PI/(double)RAND_MAX;
+	double prob;
+	// Randomly get the particles needed
+	// Don't want -1 cells
+	do {
+		_particles[p].pose.x = _map.min_x + rand()*x;
+		_particles[p].pose.y = _map.min_y + rand()*y;
+		_particles[p].pose.theta = rand()*theta;
+		_particles[p].weight = 1.0/_numParticles;
+		prob = _map.prob[(int)_particles[p].pose.x][(int)_particles[p].pose.y];
+	} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
 }
 
 // Ray trace to find the expected distance
