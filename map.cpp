@@ -184,16 +184,16 @@ void Map::draw_best_lidar(lidarData data)
 	//             int yp = y - (int)5*sin(_particles[p].pose.theta);
 	//             cv::line(temp_map, cv::Point(y, x), cv::Point(yp, xp), cv::Scalar(0, 0, 255));
 	cv::imshow("Image", temp_map);
-	cv::waitKey(100);
+	cv::waitKey(10);
 	temp_map = cv::Mat();
 }
 
 // Updates the map for a single logEntry
 void Map::augmented_MCL(logEntry logB)
 {
-    static double w_slow;
-    static double w_fast;
     static int count;
+	static double w_slow;
+	static double w_fast;
     double w_avg = 0;
     pose2D motion;
     motion.x = logB.robotPose.x - _prevLog.robotPose.x;
@@ -240,71 +240,74 @@ void Map::augmented_MCL(logEntry logB)
         w_avg += _particles[m].weight/_numParticles;
     }
     w_slow += _a_slow*(w_avg - w_slow);
-    w_fast += _a_fast*(w_avg - w_fast);
-//     if(count++%100!=99)
-//         return;
+	w_fast += _a_fast*(w_avg - w_fast);
 
     // TODO: Fix resampling!
     // A. Use this method
         // Is this method implemented correctly?
     // B. Resample based off variance
-	if(_particles[w_max_in].weight/_particles[w_max_in].weight < 10)
-		return;
-    double p_rand_pose = 1.0 - w_fast/w_slow;
-    double r_rand_pose = rand()/(double)RAND_MAX;
-    //fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
-    particle* samples = new particle[_numParticles];
-    double r = (rand()/(double)RAND_MAX)/_numParticles;
-    double c = _particles[0].weight;
-    int i = 0;
-    for(int m = 0; m < _numParticles; m++)
-    {
-        if(p_rand_pose > 0 && r_rand_pose < p_rand_pose)
-        {
-            double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
-            double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
-            double theta = 2*PI/(double)RAND_MAX;
-            double prob;
-            // Draw a new random position
-            do {
-                samples[m].pose.x = _map.min_x + rand()*x;
-                samples[m].pose.y = _map.min_y + rand()*y;
-                samples[m].pose.theta = rand()*theta;
-                samples[m].map_theta = rand()*theta;
-                // TODO: Figure out if a weight is needed here??!??!
-                samples[m].weight = 1.0/_numParticles;
-                prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
-            } while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
-        }
-        else{
-            double u = r + ((double)m)/((double)_numParticles);
-            while(u > c)
-            {
-                if(i >= _numParticles)
-                {
-                    i = _numParticles - 1;
-                    continue;
-                }
-                i++;
-                c += _particles[i].weight;
-            }
-            samples[m] = _particles[i];
-        }
-    }
-    for(int i = 0; i < _numParticles; i++)
-    {
-        _particles[i].pose.x = samples[i].pose.x;
-        _particles[i].pose.y = samples[i].pose.y;
-        _particles[i].pose.theta = samples[i].pose.theta;
-        _particles[i].map_theta = samples[i].map_theta;
-        _particles[i].weight = samples[i].weight;
-    }
+	if(_particles[w_max_in].weight/_particles[w_max_in].weight > 10)
+	{
+		resample(1.0 - w_fast/w_slow);
+	}
 
     // Save last log entry robot pose for next update
     _prevLog.logType = logB.logType;
     _prevLog.robotPose.x = logB.robotPose.x;
     _prevLog.robotPose.y = logB.robotPose.y;
     _prevLog.robotPose.theta = logB.robotPose.theta;
+}
+
+void Map::resample(double p_rand_pose)
+{
+	double r_rand_pose = rand()/(double)RAND_MAX;
+	//fprintf(stderr, "0 < R:%f < P(r):%f\n",r_rand_pose,p_rand_pose);
+	particle* samples = new particle[_numParticles];
+	double r = (rand()/(double)RAND_MAX)/_numParticles;
+	double c = _particles[0].weight;
+	int i = 0;
+	for(int m = 0; m < _numParticles; m++)
+	{
+		if(p_rand_pose > 0 && r_rand_pose < p_rand_pose)
+		{
+			double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
+			double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
+			double theta = 2*PI/(double)RAND_MAX;
+			double prob;
+			// Draw a new random position
+			do {
+				samples[m].pose.x = _map.min_x + rand()*x;
+				samples[m].pose.y = _map.min_y + rand()*y;
+				samples[m].pose.theta = rand()*theta;
+				samples[m].map_theta = rand()*theta;
+				// TODO: Figure out if a weight is needed here??!??!
+				samples[m].weight = 1.0/_numParticles;
+				prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
+			} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
+		}
+		else{
+			double u = r + ((double)m)/((double)_numParticles);
+			while(u > c)
+			{
+				if(i >= _numParticles)
+				{
+					i = _numParticles - 1;
+					continue;
+				}
+				i++;
+				c += _particles[i].weight;
+			}
+			samples[m] = _particles[i];
+		}
+	}
+	for(int i = 0; i < _numParticles; i++)
+	{
+		_particles[i].pose.x = samples[i].pose.x;
+		_particles[i].pose.y = samples[i].pose.y;
+		_particles[i].pose.theta = samples[i].pose.theta;
+		_particles[i].map_theta = samples[i].map_theta;
+		_particles[i].weight = samples[i].weight;
+	}
 }
 
 // From Probabilistic Robotics book - samples motion
@@ -359,7 +362,7 @@ double Map::_get_particle_weight(lidarData data, int p)
         //fprintf(stderr,"p%i: %f ",i,p_total);
         if(p_total <= 0)
             fprintf(stderr,"\nERROR (p,r):(%i,%i)!",p,i);
-		weight += p_total;
+		weight += log(1+p_total);
 	}
 	//fprintf(stderr,"\n");
 	if(weight < 0 || fabs(weight) > 1000)

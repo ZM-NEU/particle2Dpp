@@ -34,7 +34,7 @@ public:
 
 	// Run a single logEntry
 	void run_single_step(logEntry logB);
-    
+
     void augmented_MCL(logEntry logB);
 
     // Prediction Phase
@@ -44,6 +44,7 @@ public:
     void update_prediction(lidarData data);
     void draw_particles();
     void draw_best_lidar(lidarData data);
+	void resample(double p_rand_pose);
 
 private:
     map_type _map;
