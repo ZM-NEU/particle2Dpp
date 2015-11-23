@@ -17,11 +17,11 @@ using namespace std;
 
 Map::Map()
 {
+	// TODO Try different parameters here
 	// Map Parameters
 	_numParticles = 5000; //Random number
 	_particles = new particle[_numParticles];
-    // TODO: figure out why crashes with different _threshold
-	_threshold = 0.1;
+	_threshold = 0.15;
 	_max_laser = 800.0;
 
 	// Sensor Parameters
@@ -153,7 +153,8 @@ void Map::draw_best_lidar(lidarData data)
 	int x = (int)_particles[best_idx].pose.x;
 	int y = (int)_particles[best_idx].pose.y;
 	double theta = _particles[best_idx].pose.theta;
-
+	// TODO Plot the lidar values at the weighted average location
+	// TODO Plot the expected values instead of the actual?
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
 		int x2 = (int)(data.ranges[i]*cos(i*PI/180 + theta - PI/2) + x);
@@ -264,6 +265,7 @@ void Map::resample(double p_rand_pose)
 	{
 		if(p_rand_pose > 0 && r_rand_pose < p_rand_pose)
 		{
+			// TODO: Figure out if this is ever called
 			double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
 			double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
 			double theta = 2*PI/(double)RAND_MAX;
@@ -273,7 +275,6 @@ void Map::resample(double p_rand_pose)
 				samples[m].pose.x = _map.min_x + rand()*x;
 				samples[m].pose.y = _map.min_y + rand()*y;
 				samples[m].pose.theta = rand()*theta;
-				// TODO: Figure out if a weight is needed here??!??!
 				samples[m].weight = 1.0/_numParticles;
 				prob = _map.prob[(int)samples[m].pose.x][(int)samples[m].pose.y];
 			} while(prob > _threshold || prob < 0); // Want to pick spaces that are free (close to 0)
@@ -340,7 +341,6 @@ double Map::_get_particle_weight(lidarData data, int p)
 		_inject_at(p);
 		return 0.00;
 	}
-	//fprintf(stderr, "NO RETURN\n");
 	double weight = 0.0;
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
@@ -354,12 +354,11 @@ double Map::_get_particle_weight(lidarData data, int p)
         double p_max = (data.ranges[i] > _max_laser - 0.1 ? 1 : 0);
         double p_rand = 1.0/_max_laser;
         double p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
-        //fprintf(stderr,"p%i: %f ",i,p_total);
         if(p_total <= 0)
             fprintf(stderr,"\nERROR (p,r):(%i,%i)!",p,i);
+		// TODO Try different particle weighting algorithms and methods
 		weight += log(1+p_total);
 	}
-	//fprintf(stderr,"\n");
 	if(weight < 0 || fabs(weight) > 1000)
         fprintf(stderr,"w: %f\n",weight);
 	return weight;
