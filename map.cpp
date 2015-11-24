@@ -148,25 +148,82 @@ void Map::draw_best_lidar(lidarData data)
     avg_part.pose.x = 0;
     avg_part.pose.y = 0;
     avg_part.pose.theta = 0;
+
+	// Get total average
     int best_idx = 0;
     double eta = 0.0;
 	for(int p = 0; p < _numParticles; p++)
 	{
-        avg_part.pose.x += _particles[p].weight*_particles[p].pose.x;
-        avg_part.pose.y += _particles[p].weight*_particles[p].pose.y;
-        avg_part.pose.theta += _particles[p].weight*_particles[p].pose.theta;
-        eta += _particles[p].weight;
+//         avg_part.pose.x += _particles[p].weight*_particles[p].pose.x;
+//         avg_part.pose.y += _particles[p].weight*_particles[p].pose.y;
+//         avg_part.pose.theta += _particles[p].weight*_particles[p].pose.theta;
+//         eta += _particles[p].weight;
 		best_idx = (_particles[best_idx].weight > _particles[p].weight) ? best_idx : p;
 	}
-	avg_part.weight = _particles[best_idx].weight;
+// 	avg_part.weight = _particles[best_idx].weight;
+
+
+	// Get top average
+	int top_num = 20;
+	int* top = new int[top_num];
+	particle* topP = new particle[top_num];
+	for(int i = 0; i < top_num; i++)
+	{
+		topP[i].weight = -1;
+		topP[i].pose.x = -1;
+	}
+	for(int i = 0; i < top_num; i++)
+	{
+		for(int p = 0; p < _numParticles; p++)
+		{
+			bool topW = true;
+			if(_particles[p].weight > topP[i].weight)
+			{
+				for(int j = 0; j < i; j++)
+				{
+					if(topP[j].pose.x == p)
+					{
+						topW = false;
+					}
+				}
+				if(topW)
+				{
+					topP[i].weight = _particles[p].weight;
+					topP[i].pose.x = p;
+				}
+			}
+		}
+	}
+	for(int i = 0; i < top_num; i++)
+	{
+		eta += topP[i].weight;
+		int p = topP[i].pose.x;
+		topP[i] = _particles[p];
+	}
+	for(int i = 0; i < top_num; i++)
+	{
+		avg_part.pose.x += topP[i].weight*topP[i].pose.x;
+		avg_part.pose.y += topP[i].weight*topP[i].pose.y;
+		avg_part.pose.theta += topP[i].weight*topP[i].pose.theta;
+	}
+
 // 	// Plot highest weighted particle
 // 	int x = (int)_particles[best_idx].pose.x;
 // 	int y = (int)_particles[best_idx].pose.y;
 // 	double theta = _particles[best_idx].pose.theta;
-    // Plot weighted average particle
-    int x = (int)(avg_part.pose.x/eta);
-    int y = (int)(avg_part.pose.y/eta);
-    double theta = avg_part.pose.theta/eta;
+
+//     // Plot weighted average particle
+//     int x = (int)(avg_part.pose.x/eta);
+//     int y = (int)(avg_part.pose.y/eta);
+//     double theta = avg_part.pose.theta/eta;
+
+	// Plot top N particle's weighted average
+	int x = (int)(avg_part.pose.x/eta);
+	int y = (int)(avg_part.pose.y/eta);
+	double theta = avg_part.pose.theta/eta;
+
+
+
     fprintf(stderr,"Best (%i %i %f)\n",x,y,theta);
 	// TODO Plot the lidar values at the weighted average location
 	// TODO Plot the expected values instead of the actual?
@@ -256,7 +313,7 @@ void Map::augmented_MCL(logEntry logB)
 	{
 		_resample(1.0 - w_fast/w_slow);
 	}
-	else //if(_particles[w_max_in].weight/_particles[w_max_in].weight > 2)
+	else if(_particles[w_max_in].weight/_particles[w_max_in].weight > 2)
     {
         _low_variance_sampler();
     }
