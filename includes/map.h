@@ -81,13 +81,14 @@ private:
 
 	// From book
     void _low_variance_sampler();
-    
+
     void _resample(double p_rand_pose);
 
 	// Ray trace to find the expected distance
     double _raytrace(pose2D vec, double range);
     double _raytrace2(pose2D lidar, double ranges);
     pose2D _get_particle_variance();
+    double _gaussian_noise(double _zk, double _zkp, double _sigma);
 };
 
 double wrap(double num, double min, double max);

@@ -25,9 +25,9 @@ Map::Map()
 	_max_laser = 800.0;
 
 	// Sensor Parameters
-	_z_hit = 0.8;
-	_z_short = 0.095;
-	_z_max = 0.005;
+	_z_hit = 0.7;
+	_z_short = 0.145;
+	_z_max = 0.055;
 	_z_rand = 0.1;
 	_sigma_hit = 20;
 	_lambda_short = 0.0005;
@@ -104,7 +104,10 @@ void Map::run(vector<logEntry> logB)
 	}
 	for(int i = start_index; i < logB.size(); i++)
 	{
-        fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
+// 		if(i%20 == 0)
+// 		{
+			fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
+// 		}
         augmented_MCL(logB[i]);
 //         draw_particles();
 		lidarData data;
@@ -164,7 +167,7 @@ void Map::draw_best_lidar(lidarData data)
 
 
 	// Get top average
-	int top_num = 20;
+	int top_num = 5;
 	int* top = new int[top_num];
 	particle* topP = new particle[top_num];
 	for(int i = 0; i < top_num; i++)
@@ -224,7 +227,7 @@ void Map::draw_best_lidar(lidarData data)
 
 
 
-    fprintf(stderr,"Best (%i %i %f)\n",x,y,theta);
+    //fprintf(stderr,"Best (%i %i %f)\n",x,y,theta);
 	// TODO Plot the lidar values at the weighted average location
 	// TODO Plot the expected values instead of the actual?
 	for(int i = 0; i < NUM_RANGES; i++)
@@ -283,6 +286,7 @@ void Map::augmented_MCL(logEntry logB)
                 data.ranges[phi] = logB.ranges[phi];
             }
             _particles[m].weight = _get_particle_weight(data, m);
+// 			fprintf(stderr,"p = %i\n",m);
 //             _particles[m].weight = _get_particle_weight2(data, m);
 			w_max_in = (_particles[w_max_in].weight > _particles[m].weight) ? w_max_in : _particles[m].weight;
 			w_min_in = (_particles[w_min_in].weight < _particles[m].weight || _particles[m].weight <= 0.00) ? w_min_in : _particles[m].weight;
@@ -294,7 +298,7 @@ void Map::augmented_MCL(logEntry logB)
         eta_weights += _particles[m].weight;
     }
 
-    //fprintf(stderr,"\neta_weights: %f\n",eta_weights);
+//     fprintf(stderr,"\neta_weights: %f\n",eta_weights);
     for(int m = 0; m < _numParticles; m++)
     {
         _particles[m].weight /= eta_weights;
@@ -307,13 +311,15 @@ void Map::augmented_MCL(logEntry logB)
     // A. Use this method
         // Is this method implemented correctly?
     // B. Resample based off variance
+	count++;
     pose2D var = _get_particle_variance();
-    fprintf(stderr,"Variance (%f %f %f)\n",var.x,var.y,var.theta);
-	if(_particles[w_max_in].weight/_particles[w_max_in].weight > 10)
+    fprintf(stderr,"Variance (%f %f %f) Max/Min/Avg (%f %f %f)\n",var.x,var.y,var.theta,_particles[w_max_in].weight,_particles[w_min_in].weight,w_avg);
+	if(_particles[w_max_in].weight/_particles[w_min_in].weight > 10)
 	{
+		fprintf(stderr,"Ratio Correct\n");
 		_resample(1.0 - w_fast/w_slow);
 	}
-	else if(_particles[w_max_in].weight/_particles[w_max_in].weight > 2)
+	else if(count%10==0)//if(_particles[w_max_in].weight/_particles[w_min_in].weight > 2)
     {
         _low_variance_sampler();
     }
@@ -367,7 +373,7 @@ void Map::_low_variance_sampler()
         {
             if(i >= _numParticles)
             {
-                i = _numParticles - 1;
+                i = _numParticles - 2;
                 continue;
             }
             i++;
@@ -396,6 +402,7 @@ void Map::_resample(double p_rand_pose)
 	{
 		if(p_rand_pose > 0 && r_rand_pose < p_rand_pose)
 		{
+			fprintf(stderr,"CALLED RESAMPLE!\n");
 			// TODO: Figure out if this is ever called
 			double x = (_map.max_x - _map.min_x)/(double)RAND_MAX;
 			double y = (_map.max_y - _map.min_y)/(double)RAND_MAX;
@@ -464,9 +471,66 @@ double Map::_get_particle_weight(lidarData data, int p)
 	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y)
 	{
 		_inject_at(p);
-		return 0.00;
+		return 1.0/_numParticles;
 	}
     double prob = _map.prob[(int)lidar.x][(int)lidar.y];
+	if(prob < 0 || prob > _threshold)
+	{
+		_inject_at(p);
+		return 1.0/_numParticles;
+	}
+	double weight = 0.0;
+	for(int i = 0; i < NUM_RANGES; i++)
+	{
+        lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
+        double d_expected = _raytrace2(lidar, data.ranges[i]);
+
+//         double eta_hit = 0.0;
+// 		int resolution = 1;
+// 		for(int j = 0; j < resolution*_max_laser; j++)
+// 		{
+// 			eta_hit += _gaussian_noise((double)j/(double)resolution, d_expected, _sigma_hit);
+// 		}
+// 		double p_hit = (data.ranges[i] < _max_laser) ? _gaussian_noise(data.ranges[i], d_expected, _sigma_hit)/eta_hit : 0;
+		double p_hit = (data.ranges[i] < _max_laser) ? _gaussian_noise(data.ranges[i], d_expected, _sigma_hit) : 0;
+        double eta_short = 1.0/(1 - exp(-1*_lambda_short*d_expected));
+        double p_short = (data.ranges[i] < d_expected) ? eta_short*_lambda_short*exp(-_lambda_short*data.ranges[i]) : 0;
+        double p_max = (data.ranges[i] >= _max_laser ? 1 : 0);
+        double p_rand = 1.0/_max_laser;
+        double p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
+        if(p_total <= 0)
+            fprintf(stderr,"\nERROR (p,r):(%i,%i)!",p,i);
+		// TODO Try different particle weighting algorithms and method
+		weight += p_total;
+	}
+	//fprintf(stderr,"weight: %f\n",weight);
+	if(weight <= 0)
+	{
+		_inject_at(p);
+		return 1.0/_numParticles;
+	}
+	return weight;
+}
+
+double Map::_gaussian_noise(double _zk, double _zkp, double _sigma)
+{
+	return 1.0/sqrt(2*PI*_sigma*_sigma)*exp((-0.5*(_zk - _zkp)*(_zk - _zkp))/(_sigma*_sigma));
+}
+
+// Called by update_prediction to see how well lidarData matches for a particle p
+double Map::_get_particle_weight2(lidarData data, int p)
+{
+	pose2D particle_pose = _particles[p].pose;
+	double lidar_offset = 2.5;
+	pose2D lidar;
+	lidar.x = particle_pose.x + lidar_offset*cos(particle_pose.theta);
+	lidar.y = particle_pose.y + lidar_offset*sin(particle_pose.theta);
+	if(lidar.x < _map.min_x || lidar.x > _map.max_x || lidar.y < _map.min_y || lidar.y > _map.max_y)
+	{
+		_inject_at(p);
+		return 0.00;
+	}
+	double prob = _map.prob[(int)lidar.x][(int)lidar.y];
 	if(prob < 0 || prob > _threshold)
 	{
 		_inject_at(p);
@@ -475,23 +539,20 @@ double Map::_get_particle_weight(lidarData data, int p)
 	double weight = 0.0;
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
-        lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
-        double d_expected = _raytrace2(lidar, data.ranges[i]);
-
-        double eta_hit = 1.0/sqrt(2*PI*_sigma_hit*_sigma_hit);
-        double p_hit = eta_hit*exp((-0.5*(data.ranges[i] - d_expected)*(data.ranges[i] - d_expected))/(_sigma_hit*_sigma_hit));
-        double eta_short = 1.0/(1 - exp(-1*_lambda_short*d_expected));
-        double p_short = (data.ranges[i] < d_expected) ? eta_short*_lambda_short*exp(-_lambda_short*data.ranges[i]) : 0.000;
-        double p_max = (data.ranges[i] > _max_laser - 0.1 ? 1 : 0);
-        double p_rand = 1.0/_max_laser;
-        double p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
-        if(p_total <= 0)
-            fprintf(stderr,"\nERROR (p,r):(%i,%i)!",p,i);
-		// TODO Try different particle weighting algorithms and methods
-		weight += log(1+p_total);
+		lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
+		double d_expected = _raytrace2(lidar, data.ranges[i]);
+		if(d_expected > _max_laser)
+		{
+			weight += 0;
+		}
+		else
+		{
+// 			weight += ((d_expected - data.ranges[i])*(d_expected - data.ranges[i])/(_sigma_hit*_sigma_hit));
+			weight += fabs(d_expected - data.ranges[i])/(_sigma_hit);
+		}
+		//fprintf(stderr, "L%i Actual: %f Expected: %f Weight: %f\n",i,data.ranges[i],d_expected,((d_expected - data.ranges[i])*(d_expected - data.ranges[i])/(_sigma_hit*_sigma_hit)));
 	}
-	if(weight < 0 || fabs(weight) > 1000)
-        fprintf(stderr,"w: %f\n",weight);
+	//fprintf(stderr,"weight: %f\n", weight);
 	return weight;
 }
 
