@@ -19,7 +19,7 @@ Map::Map()
 {
 	// TODO Try different parameters here
 	// Map Parameters
-	_numParticles = 5000; //Random number
+	_numParticles = 3000; //Random number
 	_particles = new particle[_numParticles];
 	_threshold = 0.15;
 	_max_laser = 800.0;
@@ -73,6 +73,11 @@ void Map::init_map(map_type map)
                 _mapImage.at<uint8_t>(i, j) = 255;
         }
     }
+    cv::Mat temp_map;
+	cv::cvtColor(_mapImage, temp_map, CV_GRAY2RGB);
+	cv::imshow("Image", temp_map);
+	cv::waitKey(0);
+	temp_map = cv::Mat();
 }
 
 // Create the particles!
