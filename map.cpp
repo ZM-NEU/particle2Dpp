@@ -22,25 +22,25 @@ Map::Map()
 	_numParticles = 3000; //Random number
 	_particles = new particle[_numParticles];
 	_threshold = 0.1;
-	_max_laser = 830.0;
+	_max_laser = 800.0;
 
 	// Sensor Parameters
-	_z_hit = 0.8;
-	_z_short = 0.1;
+	_z_hit = 0.6;
+	_z_short = 0.3;
 	_z_max = 0.1;
 	_z_rand = 0.0;
 // 	_z_short = 0.035;
 // 	_z_max = 0.04;
 // 	_z_rand = 0.025;
 
-	_sigma_hit = 10;
+	_sigma_hit = 30;
 	_lambda_short = 0.0005;
 
 	// Odometry Parameters
-	_a1 = 0.5;
-	_a2 = 0.5;
-	_a3 = 0.5;
-	_a4 = 0.5;
+	_a1 = 0.15;
+	_a2 = 0.15;
+	_a3 = 0.2;
+	_a4 = 0.2;
 
     // Augmented_MCL Parameters
     _a_slow = 0.05;
@@ -115,7 +115,7 @@ void Map::run(vector<logEntry> logB)
 	{
 // 		if(i%20 == 0)
 // 		{
-			fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
+			//fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
 // 		}
 //         augmented_MCL(logB[i]);
 		mcl(logB[i]);
@@ -167,14 +167,8 @@ void Map::draw_best_lidar(lidarData data)
     double eta = 0.0;
 	for(int p = 0; p < _numParticles; p++)
 	{
-//         avg_part.pose.x += _particles[p].weight*_particles[p].pose.x;
-//         avg_part.pose.y += _particles[p].weight*_particles[p].pose.y;
-//         avg_part.pose.theta += _particles[p].weight*_particles[p].pose.theta;
-//         eta += _particles[p].weight;
 		best_idx = (_particles[best_idx].weight > _particles[p].weight) ? best_idx : p;
 	}
-// 	avg_part.weight = _particles[best_idx].weight;
-
 
 	// Get top average
 	int top_num = 5;
@@ -220,16 +214,6 @@ void Map::draw_best_lidar(lidarData data)
 		avg_part.pose.theta += topP[i].weight*topP[i].pose.theta;
 	}
 
-// 	// Plot highest weighted particle
-// 	int x = (int)_particles[best_idx].pose.x;
-// 	int y = (int)_particles[best_idx].pose.y;
-// 	double theta = _particles[best_idx].pose.theta;
-
-//     // Plot weighted average particle
-//     int x = (int)(avg_part.pose.x/eta);
-//     int y = (int)(avg_part.pose.y/eta);
-//     double theta = avg_part.pose.theta/eta;
-
 	// Plot top N particle's weighted average
 	int x = (int)(avg_part.pose.x/eta);
 	int y = (int)(avg_part.pose.y/eta);
@@ -266,6 +250,8 @@ void Map::draw_best_lidar(lidarData data)
 void Map::mcl(logEntry logB)
 {
 	static int count;
+    static int line;
+    line++;
 	pose2D motion;
 	motion.x = logB.robotPose.x - _prevLog.robotPose.x;
 	motion.y = logB.robotPose.y - _prevLog.robotPose.y;
@@ -276,6 +262,8 @@ void Map::mcl(logEntry logB)
 	}
 	lidarData data;
 	double eta_weights = 0;
+    int w_max_in = 0;
+    int w_min_in = 0;
 	data.ranges = new double[NUM_RANGES];
 	//fprintf(stderr,"\n");
 	for(int m = 0; m < _numParticles; m++)
@@ -291,6 +279,9 @@ void Map::mcl(logEntry logB)
 				data.ranges[phi] = logB.ranges[phi];
 			}
 			_particles[m].weight = _get_particle_weight(data, m);
+//             _particles[m].weight = _get_particle_weight2(data, m);
+            w_max_in = (_particles[w_max_in].weight > _particles[m].weight) ? w_max_in : m;
+            w_min_in = (_particles[w_min_in].weight < _particles[m].weight || _particles[m].weight <= 0.00) ? w_min_in : m;
 		}
 		else
 		{
@@ -306,11 +297,22 @@ void Map::mcl(logEntry logB)
 	}
 
 	// TODO: Fix resampling!
-	if(count%10==0)//if(_particles[w_max_in].weight/_particles[w_min_in].weight > 2)
-	{
-	_low_variance_sampler();
-	}
-
+#define SAMPLE 2
+#if SAMPLE == 0
+    _low_variance_sampler();
+#elif SAMPLE == 1
+    count++;
+    if(count%10==0)
+    {
+        _low_variance_sampler();
+    }
+#else 
+    if(_particles[w_max_in].weight > 10*_particles[w_min_in].weight)
+    {
+        fprintf(stderr,"RESAMPLE %i\n",line);
+        _low_variance_sampler();
+    }
+#endif
 	// Save last log entry robot pose for next update
 	_prevLog.logType = logB.logType;
 	_prevLog.robotPose.x = logB.robotPose.x;
@@ -445,7 +447,10 @@ void Map::_low_variance_sampler()
             i++;
             c += _particles[i].weight;
         }
-        samples[p] = _particles[i];
+        samples[p].pose.x = _particles[i].pose.x;
+        samples[p].pose.y = _particles[i].pose.y;
+        samples[p].pose.theta = _particles[i].pose.theta;
+        samples[p].weight = _particles[i].weight;
     }
     for(int i = 0; i < _numParticles; i++)
     {
