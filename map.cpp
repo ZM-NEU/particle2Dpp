@@ -21,22 +21,26 @@ Map::Map()
 	// Map Parameters
 	_numParticles = 3000; //Random number
 	_particles = new particle[_numParticles];
-	_threshold = 0.02;
-	_max_laser = 800.0;
+	_threshold = 0.1;
+	_max_laser = 830.0;
 
 	// Sensor Parameters
-	_z_hit = 0.9;
-	_z_short = 0.035;
-	_z_max = 0.04;
-	_z_rand = 0.025;
-	_sigma_hit = 20;
-	_lambda_short = 0.00005;
+	_z_hit = 0.8;
+	_z_short = 0.1;
+	_z_max = 0.1;
+	_z_rand = 0.0;
+// 	_z_short = 0.035;
+// 	_z_max = 0.04;
+// 	_z_rand = 0.025;
+
+	_sigma_hit = 10;
+	_lambda_short = 0.0005;
 
 	// Odometry Parameters
-	_a1 = 0.2;
-	_a2 = 0.2;
-	_a3 = 0.2;
-	_a4 = 0.2;
+	_a1 = 0.5;
+	_a2 = 0.5;
+	_a3 = 0.5;
+	_a4 = 0.5;
 
     // Augmented_MCL Parameters
     _a_slow = 0.05;
@@ -560,8 +564,8 @@ double Map::_get_particle_weight(lidarData data, int p)
         double p_max = (data.ranges[i] >= _max_laser ? 1 : 0);
         double p_rand = 1.0/_max_laser;
         double p_total = _z_hit*p_hit + _z_short*p_short + _z_max*p_max + _z_rand*p_rand;
-        if(p_total <= 0)
-            fprintf(stderr,"\nERROR (p,r):(%i,%i)!",p,i);
+        if(p_total < 0)
+            fprintf(stderr,"\nERROR %f (p,r):(%i,%i)!",p_total,p,i);
 		// TODO Try different particle weighting algorithms and method
 		weight += p_total;
 	}
