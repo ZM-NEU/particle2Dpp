@@ -21,22 +21,22 @@ Map::Map()
 	// Map Parameters
 	_numParticles = 3000; //Random number
 	_particles = new particle[_numParticles];
-	_threshold = 0.15;
+	_threshold = 0.02;
 	_max_laser = 800.0;
 
 	// Sensor Parameters
-	_z_hit = 0.7;
-	_z_short = 0.145;
-	_z_max = 0.055;
-	_z_rand = 0.1;
+	_z_hit = 0.9;
+	_z_short = 0.035;
+	_z_max = 0.04;
+	_z_rand = 0.025;
 	_sigma_hit = 20;
-	_lambda_short = 0.0005;
+	_lambda_short = 0.00005;
 
 	// Odometry Parameters
-	_a1 = 0.01;
-	_a2 = 0.01;
-	_a3 = 0.1;
-	_a4 = 0.1;
+	_a1 = 0.2;
+	_a2 = 0.2;
+	_a3 = 0.2;
+	_a4 = 0.2;
 
     // Augmented_MCL Parameters
     _a_slow = 0.05;
@@ -113,7 +113,8 @@ void Map::run(vector<logEntry> logB)
 // 		{
 			fprintf(stderr, "Starting line %i of %lu\n", i, logB.size()-1);
 // 		}
-        augmented_MCL(logB[i]);
+//         augmented_MCL(logB[i]);
+		mcl(logB[i]);
 //         draw_particles();
 		lidarData data;
 		data.ranges = new double[NUM_RANGES];
@@ -255,6 +256,62 @@ void Map::draw_best_lidar(lidarData data)
 	cv::imshow("Image", temp_map);
 	cv::waitKey(10);
 	temp_map = cv::Mat();
+}
+
+// Updates the map for a single logEntry
+void Map::mcl(logEntry logB)
+{
+	static int count;
+	pose2D motion;
+	motion.x = logB.robotPose.x - _prevLog.robotPose.x;
+	motion.y = logB.robotPose.y - _prevLog.robotPose.y;
+	motion.theta = logB.robotPose.theta - _prevLog.robotPose.theta;
+	if(fabs(motion.x) < 0.01  && fabs(motion.y) < 0.01 && fabs(motion.theta) < 0.01)
+	{
+		return;
+	}
+	lidarData data;
+	double eta_weights = 0;
+	data.ranges = new double[NUM_RANGES];
+	//fprintf(stderr,"\n");
+	for(int m = 0; m < _numParticles; m++)
+	{
+		// Sample Motion Model
+		_particles[m].pose = _sample_motion_model_odometry(motion, m);
+		//fprintf(stderr,"p%i(x,y,t,w)=(%f,%f,%f,%f) ",m,_particles[m].pose.x,_particles[m].pose.y,_particles[m].pose.theta,_particles[m].weight);
+		// Measurement Model
+		if(logB.logType == LIDAR)
+		{
+			for(int phi = 0; phi < NUM_RANGES; phi++)
+			{
+				data.ranges[phi] = logB.ranges[phi];
+			}
+			_particles[m].weight = _get_particle_weight(data, m);
+		}
+		else
+		{
+			return;
+		}
+		eta_weights += _particles[m].weight;
+	}
+
+	//     fprintf(stderr,"\neta_weights: %f\n",eta_weights);
+	for(int m = 0; m < _numParticles; m++)
+	{
+		_particles[m].weight /= eta_weights;
+	}
+
+	// TODO: Fix resampling!
+	if(count%10==0)//if(_particles[w_max_in].weight/_particles[w_min_in].weight > 2)
+	{
+	_low_variance_sampler();
+	}
+
+	// Save last log entry robot pose for next update
+	_prevLog.logType = logB.logType;
+	_prevLog.robotPose.x = logB.robotPose.x;
+	_prevLog.robotPose.y = logB.robotPose.y;
+	_prevLog.robotPose.theta = logB.robotPose.theta;
 }
 
 // Updates the map for a single logEntry

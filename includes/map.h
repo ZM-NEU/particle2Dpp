@@ -35,6 +35,7 @@ public:
 	void run_single_step(logEntry logB);
 
     void augmented_MCL(logEntry logB);
+	void mcl(logEntry logB);
 
     // Prediction Phase
     void update_location(pose2D motion);
