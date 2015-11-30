@@ -87,7 +87,8 @@ private:
 
 	// Ray trace to find the expected distance
     double _raytrace(pose2D vec, double range);
-    double _raytrace2(pose2D lidar, double ranges);
+    double _raytrace2(pose2D vec, double range);
+    double _raytrace3(pose2D vec, double range);
     pose2D _get_particle_variance();
     double _gaussian_noise(double _zk, double _zkp, double _sigma);
 };

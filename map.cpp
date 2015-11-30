@@ -25,9 +25,9 @@ Map::Map()
 	_max_laser = 800.0;
 
 	// Sensor Parameters
-	_z_hit = 0.6;
-	_z_short = 0.3;
-	_z_max = 0.1;
+	_z_hit = 0.5;
+	_z_short = 0.2;
+	_z_max = 0.3;
 	_z_rand = 0.0;
 // 	_z_short = 0.035;
 // 	_z_max = 0.04;
@@ -171,7 +171,7 @@ void Map::draw_best_lidar(lidarData data)
 	}
 
 	// Get top average
-	int top_num = 5;
+	int top_num = 1;
 	int* top = new int[top_num];
 	particle* topP = new particle[top_num];
 	for(int i = 0; i < top_num; i++)
@@ -224,14 +224,47 @@ void Map::draw_best_lidar(lidarData data)
     //fprintf(stderr,"Best (%i %i %f)\n",x,y,theta);
 	// TODO Plot the lidar values at the weighted average location
 	// TODO Plot the expected values instead of the actual?
+    double lidar_offset = 2.5;
+    pose2D lidar;
+    lidar.x = x + lidar_offset*cos(theta);
+    lidar.y = y + lidar_offset*sin(theta);
+#define PLOT_ACTUAL 1
+#if PLOT_ACTUAL == 0
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
-		int x2 = (int)(data.ranges[i]*cos(i*PI/180 + theta - PI/2) + x);
-		int y2 = (int)(data.ranges[i]*sin(i*PI/180 + theta - PI/2) + y);
+        lidar.theta = (double)i*PI/180 + theta;
+		int x2 = (int)(data.ranges[i]*cos(lidar.theta - PI/2) + lidar.x);
+        int y2 = (int)(data.ranges[i]*sin(lidar.theta - PI/2) + lidar.y);
 		if (x2 < _map.min_x || x2 > _map.max_x || y2 < _map.min_y || y2 > _map.max_y)
 			continue;
 		cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(0, 255, 0));
 	}
+#elif PLOT_ACTUAL == 1
+    for(int i = 0; i < NUM_RANGES; i++)
+    {
+        lidar.theta = (double)i*PI/180 + theta;
+        int x2 = (int)(_raytrace(lidar,data.ranges[i])*cos(lidar.theta - PI/2) + lidar.x);
+        int y2 = (int)(_raytrace(lidar,data.ranges[i])*sin(lidar.theta - PI/2) + lidar.y);
+        if (x2 < _map.min_x || x2 > _map.max_x || y2 < _map.min_y || y2 > _map.max_y)
+            continue;
+        cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(0, 255, 0));
+        x2 = (int)(data.ranges[i]*cos(lidar.theta - PI/2) + lidar.x);
+        y2 = (int)(data.ranges[i]*sin(lidar.theta - PI/2) + lidar.y);
+        if (x2 < _map.min_x || x2 > _map.max_x || y2 < _map.min_y || y2 > _map.max_y)
+            continue;
+        cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(255, 0, 255));
+    }
+#else
+    for(int i = 0; i < NUM_RANGES; i++)
+    {
+        lidar.theta = (double)i*PI/180 + theta;
+        int x2 = (int)(_raytrace(lidar,data.ranges[i])*cos(lidar.theta - PI/2) + lidar.x);
+        int y2 = (int)(_raytrace(lidar,data.ranges[i])*sin(lidar.theta - PI/2) + lidar.y);
+        if (x2 < _map.min_x || x2 > _map.max_x || y2 < _map.min_y || y2 > _map.max_y)
+            continue;
+        cv::line(temp_map, cv::Point(y, x), cv::Point(y2, x2), cv::Scalar(0, 255, 0));
+    }
+#endif
 	for(int p = 0; p < _numParticles; p++)
 	{
 		// Plot
@@ -554,7 +587,7 @@ double Map::_get_particle_weight(lidarData data, int p)
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
         lidar.theta = ((double)i)*PI/180 + particle_pose.theta;
-        double d_expected = _raytrace2(lidar, data.ranges[i]);
+        double d_expected = _raytrace(lidar, data.ranges[i]);
 
 //         double eta_hit = 0.0;
 // 		int resolution = 1;
@@ -647,36 +680,56 @@ void Map::_inject_at(int p)
 // Ray trace to find the expected distance
 double Map::_raytrace(pose2D vec, double range)
 {
-	int i = 0;
-	int x;
-    int y;
-    double prob;
-	do
-	{
-		x = (int)(vec.x + i*sin(vec.theta));
-		y = (int)(vec.y - i*cos(vec.theta));
-		prob = _map.prob[x][y];
-		i++;
-	} while(prob < _threshold && prob > 0);
-	i--;
-    double approx_dx = vec.x + ((double)i)*sin(vec.theta);
-    double approx_dy = vec.y - ((double)i)*cos(vec.theta);
-    double approx_d = sqrt(approx_dx*approx_dx + approx_dy*approx_dy) + (1-prob);
-	return (approx_d > _max_laser) ? _max_laser : approx_d;
+    double lower = 0;
+    double upper = _max_laser;
+    
+    while(upper >= lower)
+    {
+        int x = (int)(lower*cos(vec.theta - PI/2) + vec.x);
+        int y = (int)(lower*sin(vec.theta - PI/2) + vec.y);
+        if(x < _map.min_x || x > _map.max_x || y < _map.min_y || y > _map.max_y)
+            return lower;
+        else if(_map.prob[x][y] <= _threshold && _map.prob[x][y] >= 0) // If open move lower bound
+            lower++;
+        else
+            return lower;
+    }
+    return lower;
 }
 
 // Ray trace to find the expected distance
 double Map::_raytrace2(pose2D vec, double range)
 {
     double lower = 0;
-    double upper = _max_laser;
-
+    double upper = range;
+    
     while(upper - lower > 1.0)
     {
         double mid = (upper + lower)/2;
         int x = (int)(mid*cos(vec.theta - PI/2) + vec.x);
         int y = (int)(mid*sin(vec.theta - PI/2) + vec.y);
-		if(x < _map.min_x || x > _map.max_x || y < _map.min_y || y > _map.max_y)
+        if(x < _map.min_x || x > _map.max_x || y < _map.min_y || y > _map.max_y)
+            upper = mid;
+        else if(_map.prob[x][y] <= _threshold && _map.prob[x][y] >= 0) // If open move lower bound
+            lower = mid;
+        else
+            upper = mid;
+    }
+    return (upper + lower)/2;
+}
+
+// Ray trace to find the expected distance
+double Map::_raytrace3(pose2D vec, double range)
+{
+    double lower = 0;
+    double upper = _max_laser;
+    
+    while(upper - lower > 1.0)
+    {
+        double mid = (upper + lower)/2;
+        int x = (int)(mid*cos(vec.theta - PI/2) + vec.x);
+        int y = (int)(mid*sin(vec.theta - PI/2) + vec.y);
+        if(x < _map.min_x || x > _map.max_x || y < _map.min_y || y > _map.max_y)
             upper = mid;
         else if(_map.prob[x][y] <= _threshold && _map.prob[x][y] >= 0) // If open move lower bound
             lower = mid;
