@@ -30,11 +30,11 @@ int main(int argc, char **argv)
     map1.init_map(map);
     map2.init_map(map);
 
-	int nParticles = 5000;
-	map1.init_particles(nParticles);
-	map1.run(logBook1);
-// 	map2.init_particles(nParticles);
-// 	map2.run(logBook2);
+	int nParticles = 2000;
+// 	map1.init_particles(nParticles);
+// 	map1.run(logBook1);
+	map2.init_particles(nParticles);
+	map2.run(logBook2);
 
     return 0;
 }

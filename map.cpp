@@ -21,26 +21,26 @@ Map::Map()
 	// Map Parameters
 	_numParticles = 3000; //Random number
 	_particles = new particle[_numParticles];
-	_threshold = 0.1;
-	_max_laser = 800.0;
+	_threshold = 0.0;
+	_max_laser = 830.0;
 
 	// Sensor Parameters
-	_z_hit = 0.5;
-	_z_short = 0.2;
-	_z_max = 0.3;
-	_z_rand = 0.0;
+	_z_hit = 1.0;
+	_z_short = 0.00;
+	_z_max = 0.00;
+	_z_rand = 0.00;
 // 	_z_short = 0.035;
 // 	_z_max = 0.04;
 // 	_z_rand = 0.025;
 
-	_sigma_hit = 30;
+	_sigma_hit = 10;
 	_lambda_short = 0.0005;
 
 	// Odometry Parameters
-	_a1 = 0.15;
-	_a2 = 0.15;
-	_a3 = 0.2;
-	_a4 = 0.2;
+	_a1 = 0.5;
+	_a2 = 0.5;
+	_a3 = 0.5;
+	_a4 = 0.5;
 
     // Augmented_MCL Parameters
     _a_slow = 0.05;
@@ -228,7 +228,7 @@ void Map::draw_best_lidar(lidarData data)
     pose2D lidar;
     lidar.x = x + lidar_offset*cos(theta);
     lidar.y = y + lidar_offset*sin(theta);
-#define PLOT_ACTUAL 1
+#define PLOT_ACTUAL 0
 #if PLOT_ACTUAL == 0
 	for(int i = 0; i < NUM_RANGES; i++)
 	{
@@ -339,7 +339,7 @@ void Map::mcl(logEntry logB)
     {
         _low_variance_sampler();
     }
-#else 
+#else
     if(_particles[w_max_in].weight > 10*_particles[w_min_in].weight)
     {
         fprintf(stderr,"RESAMPLE %i\n",line);
@@ -682,7 +682,7 @@ double Map::_raytrace(pose2D vec, double range)
 {
     double lower = 0;
     double upper = _max_laser;
-    
+
     while(upper >= lower)
     {
         int x = (int)(lower*cos(vec.theta - PI/2) + vec.x);
@@ -702,7 +702,7 @@ double Map::_raytrace2(pose2D vec, double range)
 {
     double lower = 0;
     double upper = range;
-    
+
     while(upper - lower > 1.0)
     {
         double mid = (upper + lower)/2;
@@ -723,7 +723,7 @@ double Map::_raytrace3(pose2D vec, double range)
 {
     double lower = 0;
     double upper = _max_laser;
-    
+
     while(upper - lower > 1.0)
     {
         double mid = (upper + lower)/2;
